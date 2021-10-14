@@ -1,0 +1,10 @@
+numpy
+pandas
+matplotlib
+seaborn
+torch
+transformers
+datasets
+simple_parsing
+tqdm
+wandb
