@@ -1,52 +1,115 @@
+import os
+import sys
+import logging
+
 from arguments import (
     DatasetArguments,
     ModelArguments, 
-    TrainerArguments
+    RetrieverArguments,
 )
+from transformers import TrainingArguments
 from simple_parsing import ArgumentParser
 
 from model.models import BaseModel
+from utils import increment_path
+from transformers import set_seed
 
 import torch
 
+from transformers import AutoConfig, AutoTokenizer, AutoModelForQuestionAnswering
+from datasets import load_from_disk, load_metric, Dataset, DatasetDict
+
+
+
 def parse_args():
+
     parser = ArgumentParser()
-    parser.add_arguments(ModelArguments, dest="train")
-    parser.add_arguments(ModelArguments, dest="valid")
+    
     parser.add_arguments(DatasetArguments, dest="dataset")
-    parser.add_arguments(TrainerArguments, dest="trainer")
+    parser.add_arguments(ModelArguments, dest="model")
+    parser.add_arguments(RetrieverArguments, dest="retriever")
+    parser.add_arguments(TrainingArguments, dest="training")
 
     args = parser.parse_args()
     
     return args
 
+
+logger = logging.getLogger(__name__)
+
+
 def main():
     
+    #########################
+    ### Argument Parsing
+    #########################
+
     args = parse_args()
 
-    train_args: ModelArguments     = args.train
-    valid_args: ModelArguments     = args.valid
-    dataset_args: DatasetArguments = args.dataset
-    trainer_args: TrainerArguments = args.trainer
+    dataset_args: DatasetArguments   = args.dataset
+    model_args: ModelArguments       = args.model
+    rt_args: RetrieverArguments      = args.retriever
+    training_args: TrainingArguments = args.training
 
-    model = BaseModel(train_args.num_labels)
+    training_args.output_dir  = increment_path(
+        training_args.output_dir, 
+        training_args.overwrite_output_dir
+    )
+    training_args.logging_dir = increment_path(
+        training_args.logging_dir, 
+        training_args.overwrite_output_dir
+    )
 
-    train_X = torch.randn(size=(10, 16))
-    train_Y = torch.arange(1, 11, 1, dtype=torch.float)
+    print(f"output_dir : {training_args.output_dir}")
+    print(f"logging_dir: {training_args.logging_dir}")
 
-    criterion = train_args.loss_fn.value
-    optimizer = trainer_args.optimizer.value(model.parameters(), lr=trainer_args.lr)
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -    %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
 
-    for epoch in range(trainer_args.epochs):
-        out = model(train_X)
-        loss = criterion(out, train_Y.unsqueeze(1))
+    logger.info("Training/evaluation parameters %s", training_args)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    set_seed(training_args.seed)
 
-        if (epoch+1) % trainer_args.print_every == 0:
-            print(loss.item())
+    #########################
+    ### Load Config, Tokenizer, Model
+    #########################
 
+    config = AutoConfig.from_pretrained(
+        model_args.config if model_args.config is not None else model_args.model        
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_args.tokenizer if model_args.tokenizer is not None else model_args.model
+    )
+
+    # TODO: load custom model here
+    model = AutoModelForQuestionAnswering.from_pretrained(
+        model_args.model,
+        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        config=config
+    )
+
+    print(
+        type(training_args),
+        type(model_args),
+        type(tokenizer),
+        type(model),
+        end="\n"
+    )
+
+    #########################
+    ### Load Dataset
+    #########################
+
+    datasets = load_from_disk(dataset_args.dataset_name)
+
+    print(type(datasets))
+
+    
+
+    
 if __name__ == '__main__':
     main()

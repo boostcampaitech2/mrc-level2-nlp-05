@@ -8,84 +8,87 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.optim import optimizer
 
+from simple_parsing.helpers import Serializable
+
+
 class Loss(Enum):
     CrossEntropyLoss = nn.CrossEntropyLoss()
     MSELoss = nn.MSELoss()
     BCELoss = nn.BCELoss()
     FocalLoss = None
 
+
 class Optimizer(Enum):
     Adam  = optim.Adam
     AdamW = optim.AdamW
     SGD   = optim.SGD
 
-@dataclass
-class ModelArguments:
-    """
-    Model Arguements
-    """
-    model_name: Union[str, os.PathLike] = field(
-        default="klue/bert-base",
-        metadata={
-            "help": "Path to pretrained model or model identifier from huggingface.co/models"
-        },
-    )
 
-    num_labels: int = field(
-        default=1,
-        metadata={
-            "help": "number of labels. if 1, BCELoss / if > 2, CELoss"
-        }
-    )
+class LRScheduler(Enum):
+    constant = "constant"
+    linear   = "linear"
 
-    loss_fn: Loss = field(
-        default=Loss.CrossEntropyLoss,
-        metadata={
-            "help": "Loss function used internally in the model"
-        }
-    )
 
 @dataclass
-class DatasetArguments:
-    """
-    Dataset Arguments
-    """
-    dataset_path: Union[str, os.PathLike] = field(
-        default="/opt/ml/data/train_dataset",
-        metadata={
-            "help": "Path to dataset"
-        },
-    )
+class ModelArguments(Serializable):
+    """Model Arguements"""
+
+    model: Union[str, os.PathLike] = "klue/bert-base"
+    """path to pretrained model or model identifier from huggingface.co/models"""
+
+    config: Optional[Union[str, os.PathLike]] = None
+    """pretrained config name or path if not the same as model_name"""
+
+    tokenizer: Optional[Union[str, os.PathLike]] = None
+    """pretrained tokenizer name or path if not the same as model_name"""
+
+    head: Optional[Union[str]] = None
+    """output head"""
+
+    loss_fn: Loss = Loss.CrossEntropyLoss
+    """loss function used internally in the model"""
 
 @dataclass
-class TrainerArguments:
-    """
-    Trainer Arguments
-    """
-    lr: float = field(
-        default=3e-5,
-        metadata={
-            "help": "learning rate"
-        }
-    )
+class DatasetArguments(Serializable):
+    """Dataset/DataLoader Arguments"""
 
-    epochs: int = field(
-        default=1,
-        metadata={
-            "help": "num epochs in float"
-        }
-    )
+    dataset_path: os.PathLike = "/opt/ml/data/train_dataset"
+    """path for the dataset"""
 
-    optimizer: Optimizer = field(
-        default=Optimizer.Adam,
-        metadata={
-            "help": "optimizer type"
-        }
-    )
+    max_seq_len: int = 384
+    """maximum total input sequence length after tokenization"""
 
-    print_every: int = field(
-        default=500, 
-        metadata={
-            "help": "print every steps"
-        }
-    )
+    stride_len: int = 128
+    """stride value when splitting up a long document into chunks"""
+
+    max_ans_len: int = 30
+    """maximum length of an answer that can be generated"""
+
+    use_max_padding: bool = False
+    """Whether to pad all samples to `max_seq_length`. 
+    Run slow if set to False on TPUs"""
+
+    use_bucketing: bool = False
+    """Whether to use bucketing"""
+
+    num_workers: int = 1
+    """num workers for preprocessing"""
+
+
+class RetrieverArguments(Serializable):
+    """Retriever Arguments"""
+
+    retriver: str = "tf-idf"
+    """name of retriever"""
+
+    top_k_retrieval: int = 1
+    """numb top-k passages to retrieve"""
+
+    use_eval_retrieval: bool = True
+    """whether to run retrieval on eval"""
+
+    use_faiss: bool = False
+    """whether to build with faiss"""
+
+    num_clusters: int = 64
+    """num clusters to use for faiss"""
