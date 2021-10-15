@@ -140,3 +140,6 @@ results/
 *.bin
 *.bin.gz
 nohup.out
+
+# vscode
+.vscode
