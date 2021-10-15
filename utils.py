@@ -4,7 +4,7 @@ import glob
 from pathlib import Path
 
 
-def increment_path(path, overwrite=False):
+def increment_path(path, overwrite=False) -> str:
     """ Automatically increment path, i.e. runs/exp --> runs/exp0, runs/exp1 etc.
     Args:
         path (str or pathlib.Path): f"{model_dir}/{args.name}".
@@ -15,12 +15,16 @@ def increment_path(path, overwrite=False):
     """
     path = Path(path)
 
+    if os.path.isabs(path):
+        path = Path(os.path.relpath(path))
+
     if (path.exists() and overwrite) or (not path.exists()):
         if not os.path.exists(str(path).split('/')[0]):
             os.mkdir(str(path).split('/')[0])
         if not path.exists():
             os.mkdir(path)
         return str(path)
+
     else:
         dirs = glob.glob(f"{path}*")
         matches = [re.search(rf"%s(\d+)" % path.stem, d) for d in dirs]

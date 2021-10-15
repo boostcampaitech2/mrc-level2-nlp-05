@@ -1,18 +1,19 @@
 import os
 import sys
 import logging
+from typing import Optional
 
 from arguments import (
     DatasetArguments,
-    ModelArguments, 
+    ModelArguments,
     RetrieverArguments,
 )
-from transformers import TrainingArguments
+
+from transformers import TrainingArguments, HfArgumentParser
 from simple_parsing import ArgumentParser
 
 from model.models import BaseModel
 from utils import increment_path
-from transformers import set_seed
 
 import torch
 
@@ -20,44 +21,30 @@ from transformers import AutoConfig, AutoTokenizer, AutoModelForQuestionAnswerin
 from datasets import load_from_disk, load_metric, Dataset, DatasetDict
 
 
-
-def parse_args():
-
-    parser = ArgumentParser()
-    
-    parser.add_arguments(DatasetArguments, dest="dataset")
-    parser.add_arguments(ModelArguments, dest="model")
-    parser.add_arguments(RetrieverArguments, dest="retriever")
-    parser.add_arguments(TrainingArguments, dest="training")
-
-    args = parser.parse_args()
-    
-    return args
-
-
 logger = logging.getLogger(__name__)
 
 
 def main():
-    
+
     #########################
     ### Argument Parsing
     #########################
+    """You must set some of the huggnigface training_args...
+    - output_dir (you can maintain the same output_dir... the output numbering will be automatically increased)
+    - 
+    """
 
-    args = parse_args()
-
-    dataset_args: DatasetArguments   = args.dataset
-    model_args: ModelArguments       = args.model
-    rt_args: RetrieverArguments      = args.retriever
-    training_args: TrainingArguments = args.training
-
-    training_args.output_dir  = increment_path(
-        training_args.output_dir, 
-        training_args.overwrite_output_dir
+    parser = HfArgumentParser(
+        (DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments)
     )
+    dataset_args, model_args, retriever_args, training_args = parser.parse_args_into_dataclasses()
+
+    training_args.output_dir = increment_path(
+        training_args.output_dir, training_args.overwrite_output_dir
+    )
+
     training_args.logging_dir = increment_path(
-        training_args.logging_dir, 
-        training_args.overwrite_output_dir
+        training_args.logging_dir, training_args.overwrite_output_dir
     )
 
     print(f"output_dir : {training_args.output_dir}")
@@ -69,16 +56,17 @@ def main():
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
-    logger.info("Training/evaluation parameters %s", training_args)
-
-    set_seed(training_args.seed)
+    logger.debug("Dataset arguments %s", dataset_args)
+    logger.debug("Model arguments %s", model_args)
+    logger.debug("Retriever arguments %s", retriever_args)
+    logger.info("Training argumenets %s", training_args)
 
     #########################
     ### Load Config, Tokenizer, Model
     #########################
 
     config = AutoConfig.from_pretrained(
-        model_args.config if model_args.config is not None else model_args.model        
+        model_args.config if model_args.config is not None else model_args.model
     )
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -88,7 +76,7 @@ def main():
     # TODO: load custom model here
     model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model,
-        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        from_tf=bool(".ckpt" in model_args.model),
         config=config
     )
 
@@ -104,12 +92,10 @@ def main():
     ### Load Dataset
     #########################
 
-    datasets = load_from_disk(dataset_args.dataset_name)
+    datasets = load_from_disk(dataset_args.dataset_path)
 
     print(type(datasets))
 
-    
 
-    
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
