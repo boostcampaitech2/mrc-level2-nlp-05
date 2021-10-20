@@ -56,6 +56,9 @@ class DatasetArguments(BaseArguments):
     num_workers: int = 1
     """num workers for preprocessing"""
 
+    overwrite_cache: bool = True
+    """overwrite cache file if True"""
+
 
 @dataclass
 class ModelArguments(BaseArguments):

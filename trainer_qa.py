@@ -29,10 +29,12 @@ if is_torch_tpu_available():
 
 # Huggingface의 Trainer를 상속받아 QuestionAnswering을 위한 Trainer를 생성합니다.
 class QuestionAnsweringTrainer(Trainer):
-    def __init__(self, *args, eval_examples=None, post_process_function=None, **kwargs):
+    def __init__(self, *args, dataset_args=None, datasets=None, eval_examples=None, post_process_function=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.eval_examples = eval_examples
         self.post_process_function = post_process_function
+        self.dataset_args = dataset_args
+        self.datasets = datasets
 
     def evaluate(self, eval_dataset=None, eval_examples=None, ignore_keys=None):
         eval_dataset = self.eval_dataset if eval_dataset is None else eval_dataset
@@ -62,7 +64,7 @@ class QuestionAnsweringTrainer(Trainer):
 
         if self.post_process_function is not None and self.compute_metrics is not None:
             eval_preds = self.post_process_function(
-                eval_examples, eval_dataset, output.predictions, self.args
+                eval_examples, eval_dataset, self.datasets, output.predictions, self.args, self.dataset_args
             )
             metrics = self.compute_metrics(eval_preds)
 
