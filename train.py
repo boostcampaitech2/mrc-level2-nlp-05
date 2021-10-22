@@ -13,10 +13,9 @@ from arguments import (
     RetrieverArguments,
 )
 
-from transformers import TrainingArguments, HfArgumentParser
+from transformers import TrainingArguments, HfArgumentParser, Trainer
 from simple_parsing import ArgumentParser
 
-from model.models import BaseModel
 from utils import increment_path
 
 import torch
@@ -30,13 +29,46 @@ from retrieval import SparseRetrieval
 
 from preprocessor import BaselinePreprocessor, Preprocessor
 from postprocessor import post_processing_function
+from model.models import CustomRobertaForQuestionAnsweringRNN
 
 logger = logging.getLogger(__name__)
 
 metric = load_metric("squad")
 
+
 def compute_metrics(pred: EvalPrediction):
     return metric.compute(predictions=pred.predictions, references=pred.label_ids)
+
+
+def get_model_and_tokenizer(model_args: ModelArguments, return_config: bool = False):
+    
+    config = AutoConfig.from_pretrained(
+        model_args.config if model_args.config is not None else model_args.model
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_args.tokenizer if model_args.tokenizer is not None else model_args.model,
+    )
+
+    # TODO: Load custom model here
+    model = None
+
+    try: 
+        model_module = getattr(import_module("model.models"), model_args.model)
+        model = model_module(config)
+        tokenizer = model.tokenizer
+    
+    except:
+        model = AutoModelForQuestionAnswering.from_pretrained(
+            model_args.model, 
+            from_tf=bool(".ckpt" in model_args.model), 
+            config=config
+        )
+
+    if return_config:
+        return model, tokenizer, config
+    else:
+        return model, tokenizer
 
 
 def main():
@@ -54,11 +86,6 @@ def main():
         retriever_args,
         training_args,
     ) = parser.parse_args_into_dataclasses()
-
-    # dataset_args = DatasetArguments(dataset_args)
-    # model_args = ModelArguments(model_args)
-    # retriever_args = RetrieverArguments(retriever_args)
-    # training_args = TrainingArguments(training_args)
 
     training_args.output_dir = increment_path(
         training_args.output_dir, training_args.overwrite_output_dir
@@ -83,23 +110,15 @@ def main():
     logger.info("Training argumenets %s", training_args)
 
     #########################
-    ### Load Config, Tokenizer, Model
+    ### Load Model & Tokenizer
     #########################
 
-    config = AutoConfig.from_pretrained(
-        model_args.config if model_args.config is not None else model_args.model
-    )
+    # model, tokenizer = get_model_and_tokenizer(model_args)
+    config = AutoConfig.from_pretrained("klue/roberta-base")
+    tokenizer = AutoTokenizer.from_pretrained("klue/roberta-base")
+    model = AutoModelForQuestionAnswering.from_pretrained("klue/roberta-base")
 
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_args.tokenizer if model_args.tokenizer is not None else model_args.model
-    )
-
-    # TODO: load custom model here
-    model = AutoModelForQuestionAnswering.from_pretrained(
-        model_args.model, from_tf=bool(".ckpt" in model_args.model), config=config
-    )
-
-    print(type(training_args), type(model_args), type(tokenizer), type(model), end="\n")
+    print(type(model), type(tokenizer), sep="\n")
 
     #########################
     ### Load & Preprocess Dataset
@@ -152,23 +171,35 @@ def main():
             load_from_cache_file=not dataset_args.overwrite_cache,
         )
 
-    data_collator = DataCollatorWithPadding(tokenizer)
+    # data_collator = DataCollatorWithPadding(tokenizer)
 
-    trainer = QuestionAnsweringTrainer(
+    # trainer = QuestionAnsweringTrainer(
+    #     model=model,
+    #     args=training_args,
+    #     dataset_args=dataset_args,
+    #     train_dataset=train_dataset if training_args.do_train else None,
+    #     eval_dataset=eval_dataset if training_args.do_eval else None,
+    #     eval_examples=datasets["validation"] if training_args.do_eval else None,
+    #     tokenizer=tokenizer,
+    #     datasets=datasets,
+    #     # data_collator=data_collator,
+    #     post_process_function=post_processing_function,
+    #     compute_metrics=compute_metrics,
+    # )
+
+    print(train_dataset)
+
+    trainer = Trainer(
         model=model,
         args=training_args,
-        dataset_args=dataset_args,
-        train_dataset=train_dataset if training_args.do_train else None,
-        eval_dataset=eval_dataset if training_args.do_eval else None,
-        eval_examples=datasets["validation"] if training_args.do_eval else None,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
         tokenizer=tokenizer,
-        datasets=datasets,
-        # data_collator=data_collator,
-        post_process_function=post_processing_function,
-        compute_metrics=compute_metrics,
+        # compute_metrics=compute_metrics
     )
 
     trainer.train()
+
 
 if __name__ == "__main__":
     main()
