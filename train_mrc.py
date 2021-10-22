@@ -15,9 +15,17 @@ from arguments import (
 
 import torch
 from torch.utils.data import DataLoader
-from transformers import AutoConfig, AutoTokenizer, AutoModelForQuestionAnswering, AdamW
-from transformers import TrainingArguments, HfArgumentParser
-from transformers import DataCollatorWithPadding
+
+from transformers import (
+    set_seed,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelForQuestionAnswering,
+    DataCollatorWithPadding,
+    AdamW,
+    TrainingArguments,
+    HfArgumentParser
+)
 
 from datasets import load_from_disk, load_metric
 
@@ -50,17 +58,24 @@ def update_save_path(training_args):
 
 def set_logging(default_args, dataset_args, model_args, retriever_args, training_args):
     """logging setting 함수"""
+    logging_level_dict = {
+        "DEBUG": logging.DEBUG,         # 문제를 해결할 때 필요한 자세한 정보
+        "INFO": logging.INFO,           # 작업이 정상적으로 작동하고 있다는 확인 메시지
+        "WARNING": logging.WARNING,     # 예상하지 못한 일이 발생 or 발생 가능한 문제점을 명시
+        "ERROR": logging.ERROR,         # 프로그램이 함수를 실행하지 못 할 정도의 심각한 문제
+        "CRITICAL": logging.CRITICAL    # 프로그램이 동작할 수 없을 정도의 심각한 문제
+    }
     logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s -    %(message)s",
+        format="%(asctime)s - %(module)s - %(levelname)s  %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
+        level=logging_level_dict[default_args.log_level]
     )
-
     logger.debug("Default arguments %s", default_args)
     logger.debug("Dataset arguments %s", dataset_args)
     logger.debug("Model arguments %s", model_args)
     logger.debug("Retriever arguments %s", retriever_args)
-    logger.info("Training argumenets %s", training_args)
+    logger.debug("Training argumenets %s", training_args)
 
 def get_model(model_args, training_args):
     """model, tokenizer, optimizer 객체 생성 함수"""
@@ -133,7 +148,7 @@ def get_data(dataset_args, training_args, tokenizer):
     return datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader
 
 def concat_context_logits(logits, dataset, max_len):
-    """각 batch의 start_logits와 end_logits를 하나로 합쳐주는 함수"""
+    """각 batch의 logits을 하나로 합쳐주는 함수"""
     step = 0
     logits_concat = np.full((len(dataset), max_len), -100, dtype=np.float64)
 
@@ -230,7 +245,7 @@ def train_mrc(
                 eval_loss_obj.update(eval_loss, eval_num)
 
                 if eval_loss_obj.get_avg_loss() < prev_eval_loss:
-                    # TODO: 5개 저장됐을 때 삭제하는 로직 개발 필요
+                    # TODO: 5개 저장됐을 때 삭제하는 로직 개발 필요 -> huggingface format 모델 저장 필요
                     torch.save(model.state_dict(), os.path.join(training_args.output_dir, f"checkpoint-{global_steps:05d}.pt"))
                     prev_eval_loss = eval_loss_obj.get_avg_loss()
                 # TODO: 하이퍼파라미터(arguments) 정보 wandb에 기록하는 로직 필요
@@ -249,12 +264,12 @@ def train_mrc(
                 wandb.log({'global_steps':global_steps})
 
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
     default_args, dataset_args, model_args, retriever_args, training_args = get_args()
-    update_save_path(training_args)
     set_logging(default_args, dataset_args, model_args, retriever_args, training_args)
+    update_save_path(training_args)
+    set_seed(training_args.seed)
 
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model, tokenizer, optimizer = get_model(model_args, training_args)
     model.to(device)
 

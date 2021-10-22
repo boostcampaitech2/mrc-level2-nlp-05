@@ -103,6 +103,9 @@ class RetrieverArguments(BaseArguments):
 class DefaultArguments(BaseArguments):
     """Default Arguments"""
 
+    log_level: str = "INFO"
+    """logging level"""
+
     wandb_entity: str = "this-is-real"
     """wandb entity name"""
 
