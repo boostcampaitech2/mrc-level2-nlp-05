@@ -2,6 +2,7 @@ import os
 import sys
 import wandb
 import logging
+import random
 import numpy as np
 from tqdm import tqdm
 from importlib import import_module
@@ -24,7 +25,8 @@ from transformers import (
     DataCollatorWithPadding,
     AdamW,
     TrainingArguments,
-    HfArgumentParser
+    HfArgumentParser,
+    get_cosine_with_hard_restarts_schedule_with_warmup
 )
 
 from datasets import load_from_disk, load_metric
@@ -77,23 +79,59 @@ def set_logging(default_args, dataset_args, model_args, retriever_args, training
     logger.debug("Retriever arguments %s", retriever_args)
     logger.debug("Training argumenets %s", training_args)
 
+def set_seed_everything(seed):
+    '''seed 고정 함수'''
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    set_seed(seed)
+
+def get_grouped_parameters(model, training_args):
+    """weight decay가 적용된 모델 파라미터 생성 함수"""
+    no_decay = ["bias", "LayerNorm.weight"]
+    grouped_parameters = [
+        {
+            "params": [param for name, param in model.named_parameters() if not any(nd in name for nd in no_decay)],
+            "weight_decay": training_args.weight_decay
+        },
+        {
+            "params": [param for name, param in model.named_parameters() if any(nd in name for nd in no_decay)],
+            "weight_decay": 0.0
+        }
+    ]
+    return grouped_parameters
+
 def get_model(model_args, training_args):
     """model, tokenizer, optimizer 객체 생성 함수"""
+    # model config
     config = AutoConfig.from_pretrained(
         model_args.config if model_args.config is not None else model_args.model
     )
 
+    # tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.tokenizer if model_args.tokenizer is not None else model_args.model
     )
 
-    # TODO: load custom model here
+    # model
     model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model, from_tf=bool(".ckpt" in model_args.model), config=config
     )
+    # TODO: load custom model here
+    #model.qa_outputs = CustomModel(config)
 
-    optimizer = AdamW(model.parameters(), lr=training_args.learning_rate)
-    return model, tokenizer, optimizer
+    # optimizer
+    optimizer = AdamW(
+        params=get_grouped_parameters(model, training_args),
+        lr=training_args.learning_rate,
+        eps=training_args.adam_epsilon
+    )
+
+    return config, model, tokenizer, optimizer
 
 def get_data(dataset_args, training_args, tokenizer):
     """데이터셋 생성, preprocess 적용, dataLoader 객체 생성 함수"""
@@ -103,7 +141,6 @@ def get_data(dataset_args, training_args, tokenizer):
     eval_dataset_for_predict = datasets['validation']
     column_names = train_dataset.column_names
 
-    # TODO: Argparse
     preprocessor = BaselinePreprocessor(
         dataset_args=dataset_args, tokenizer=tokenizer, column_names=column_names
     )
@@ -147,6 +184,15 @@ def get_data(dataset_args, training_args, tokenizer):
 
     return datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader
 
+def get_scheduler(optimizer, train_dataloader, training_args):
+    num_training_steps = len(train_dataloader) // training_args.gradient_accumulation_steps * training_args.num_train_epochs
+    scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=training_args.warmup_steps,
+        num_training_steps=num_training_steps
+    )
+    return scheduler
+
 def concat_context_logits(logits, dataset, max_len):
     """각 batch의 logits을 하나로 합쳐주는 함수"""
     step = 0
@@ -163,7 +209,7 @@ def concat_context_logits(logits, dataset, max_len):
 
     return logits_concat
 
-def train_step(model, optimizer, batch, device):
+def train_step(model, optimizer, scheduler, batch, device):
     """각 training batch에 대한 모델 학습 및 train loss 계산 함수"""
     model.train()
     batch = batch.to(device)
@@ -173,6 +219,7 @@ def train_step(model, optimizer, batch, device):
     loss = outputs.loss
     loss.backward()
     optimizer.step()
+    scheduler.step()
 
     return loss.item()
 
@@ -212,7 +259,7 @@ def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, 
 
 def train_mrc(
     default_args, dataset_args, model_args, retriever_args, training_args,
-    model, optimizer, tokenizer,
+    model, optimizer, scheduler, tokenizer,
     datasets, eval_dataset_for_predict,
     train_dataloader, eval_dataloader,
     device
@@ -230,7 +277,7 @@ def train_mrc(
             leave=True
         )
         for step, batch in pbar:
-            loss = train_step(model, optimizer, batch, device)
+            loss = train_step(model, optimizer, scheduler, batch, device)
 
             global_steps += 1
             train_loss_obj.update(loss, len(batch['input_ids']))
@@ -267,13 +314,15 @@ def main():
     default_args, dataset_args, model_args, retriever_args, training_args = get_args()
     set_logging(default_args, dataset_args, model_args, retriever_args, training_args)
     update_save_path(training_args)
-    set_seed(training_args.seed)
+    set_seed_everything(training_args.seed)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model, tokenizer, optimizer = get_model(model_args, training_args)
+    config, model, tokenizer, optimizer = get_model(model_args, training_args)
     model.to(device)
 
     datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader = get_data(dataset_args, training_args, tokenizer)
+
+    scheduler = get_scheduler(optimizer, train_dataloader, training_args)
 
     # set wandb
     wandb.login()
@@ -285,7 +334,7 @@ def main():
 
     train_mrc(
         default_args, dataset_args, model_args, retriever_args, training_args,
-        model, optimizer, tokenizer,
+        model, optimizer, scheduler, tokenizer,
         datasets, eval_dataset_for_predict,
         train_dataloader, eval_dataloader,
         device
