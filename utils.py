@@ -3,6 +3,24 @@ import re
 import glob
 from pathlib import Path
 
+class LossObject:
+    """
+    loss 값을 관리하는 Object Class
+    """
+    def __init__(self):
+        self.loss = 0
+        self.example_cnt = 0
+    
+    def update(self, new_loss, new_example_cnt):
+        self.loss += new_loss
+        self.example_cnt += new_example_cnt
+
+    def get_avg_loss(self):
+        return self.loss / self.example_cnt
+
+    def reset(self):
+        self.loss = 0
+        self.example_cnt = 0
 
 def increment_path(path, overwrite=False) -> str:
     """ Automatically increment path, i.e. runs/exp --> runs/exp0, runs/exp1 etc.
