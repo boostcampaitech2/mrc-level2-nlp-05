@@ -293,7 +293,7 @@ def train_mrc(
 
                 if eval_loss_obj.get_avg_loss() < prev_eval_loss:
                     # TODO: 5개 저장됐을 때 삭제하는 로직 개발 필요 -> huggingface format 모델 저장 필요
-                    torch.save(model.state_dict(), os.path.join(training_args.output_dir, f"checkpoint-{global_steps:05d}.pt"))
+                    model.save_pretrained(os.path.join(training_args.output_dir, f"checkpoint-{global_steps:05d}"))
                     prev_eval_loss = eval_loss_obj.get_avg_loss()
                 # TODO: 하이퍼파라미터(arguments) 정보 wandb에 기록하는 로직 필요
                 wandb.log({

@@ -14,6 +14,7 @@ pip install wandb
 pip install typing
 pip install simple-parsing
 pip install sentencepiece
+pip install rank-bm25
 
 # faiss install (if you want to)
 pip install faiss-gpu

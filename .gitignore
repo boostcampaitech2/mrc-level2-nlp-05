@@ -133,7 +133,7 @@ dmypy.json
 
 # PyTorch saved model & data files
 saved/
-models/
+models/*
 data/
 wandb/
 logs/
