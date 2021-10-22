@@ -11,6 +11,7 @@ from transformers.trainer_utils import EvalPrediction
 from transformers import DataCollatorWithPadding
 
 from arguments import (
+    DefaultArguments,
     DatasetArguments,
     ModelArguments,
     RetrieverArguments,
@@ -40,15 +41,10 @@ metric = load_metric("squad")
 def get_args():
     """argument 반환 함수"""
     parser = HfArgumentParser(
-        (DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments)
+        (DefaultArguments, DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments)
     )
-    (
-        dataset_args,
-        model_args,
-        retriever_args,
-        training_args,
-    ) = parser.parse_args_into_dataclasses()
-    return dataset_args, model_args, retriever_args, training_args
+    default_args, dataset_args, model_args, retriever_args, training_args = parser.parse_args_into_dataclasses()
+    return default_args, dataset_args, model_args, retriever_args, training_args
 
 def update_save_path(training_args):
     """모델 및 로그 저장 경로 생성 함수"""
@@ -60,9 +56,8 @@ def update_save_path(training_args):
         training_args.logging_dir, training_args.overwrite_output_dir
     )
     print(f"output_dir : {training_args.output_dir}")
-    print(f"logging_dir: {training_args.logging_dir}")
 
-def set_logging(dataset_args, model_args, retriever_args, training_args):
+def set_logging(default_args, dataset_args, model_args, retriever_args, training_args):
     """logging 정보 setting 함수"""
     logging.basicConfig(
         format="%(asctime)s - %(levelname)s - %(name)s -    %(message)s",
@@ -70,6 +65,7 @@ def set_logging(dataset_args, model_args, retriever_args, training_args):
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
+    logger.debug("Default arguments %s", default_args)
     logger.debug("Dataset arguments %s", dataset_args)
     logger.debug("Model arguments %s", model_args)
     logger.debug("Retriever arguments %s", retriever_args)
@@ -96,7 +92,7 @@ def get_model(model_args, training_args):
 def get_data(dataset_args, training_args, tokenizer):
     datasets = load_from_disk(dataset_args.dataset_path)
     train_dataset = datasets['train']
-    eval_dataset = datasets['validation']
+    eval_dataset = datasets['validation'] 
     eval_dataset_for_post = datasets['validation']
     column_names = train_dataset.column_names
 
@@ -112,14 +108,14 @@ def get_data(dataset_args, training_args, tokenizer):
         load_from_cache_file=not dataset_args.overwrite_cache,
     )
     eval_dataset = eval_dataset.map(
-        preprocessor.prepare_train_features,
+        preprocessor.prepare_train_features, # start_position, end_position
         batched=True,
         num_proc=dataset_args.num_workers,
         remove_columns=column_names,
         load_from_cache_file=not dataset_args.overwrite_cache,
     )
     eval_dataset_for_post = eval_dataset_for_post.map(
-        preprocessor.prepare_eval_features,
+        preprocessor.prepare_eval_features, # example_id, offset_mapping
         batched=True,
         num_proc=dataset_args.num_workers,
         remove_columns=column_names,
@@ -145,7 +141,7 @@ def train_step(model, optimizer, batch, device):
     model.train()
     batch = batch.to(device)
     outputs = model(**batch)
-
+    
     optimizer.zero_grad()
     loss = outputs.loss
     loss.backward()
@@ -169,11 +165,7 @@ def concat_context_logits(logits, dataset, max_len):
 
     return logits_concat
 
-
-def compute_metrics(pred: EvalPrediction):
-    return metric.compute(predictions=pred.predictions, references=pred.label_ids)
-
-def evaluation_step(model, datasets, eval_dataset, eval_dataloader, dataset_args, training_args, device):
+def evaluation_step(model, datasets, eval_dataset_for_post, eval_dataloader, dataset_args, training_args, device):
     model.eval()
 
     start_logits_list = []
@@ -188,23 +180,24 @@ def evaluation_step(model, datasets, eval_dataset, eval_dataloader, dataset_args
         loss += outputs.loss
         eval_num += len(batch['input_ids'])
 
-        start_logits_list.append(outputs['start_logits'].detach().cpu().numpy())
+        start_logits = outputs['start_logits'] # (batch_size, 토큰 개수(?))
+        start_logits_list.append(start_logits.detach().cpu().numpy()) # 
         end_logits_list.append(outputs['end_logits'].detach().cpu().numpy())
 
     max_len = max(x.shape[1] for x in start_logits_list)
 
-    start_logits_concat = concat_context_logits(start_logits_list, eval_dataset, max_len)
-    end_logits_concat = concat_context_logits(end_logits_list, eval_dataset, max_len)
+    start_logits_concat = concat_context_logits(start_logits_list, eval_dataset_for_post, max_len)
+    end_logits_concat = concat_context_logits(end_logits_list, eval_dataset_for_post, max_len)
 
-    eval_dataset.set_format(type=None, columns=list(eval_dataset.features.keys()))
+    eval_dataset_for_post.set_format(type=None, columns=list(eval_dataset_for_post.features.keys()))
     predictions = (start_logits_concat, end_logits_concat)
-    eval_preds = post_processing_function(datasets['validation'], eval_dataset, datasets, predictions, training_args, dataset_args)
-    eval_metric = compute_metrics(eval_preds)
+    eval_preds = post_processing_function(datasets['validation'], eval_dataset_for_post, datasets, predictions, training_args, dataset_args)
+    eval_metric = metric.compute(predictions=eval_preds.predictions, references=eval_preds.label_ids) # compute_metrics
     
     return eval_metric, loss, eval_num
 
 def train_mrc(
-    dataset_args, model_args, retriever_args, training_args,
+    default_args, dataset_args, model_args, retriever_args, training_args,
     model, optimizer, tokenizer,
     datasets, train_dataset, eval_dataset, eval_dataset_for_post,
     train_dataloader, eval_dataloader,
@@ -212,12 +205,11 @@ def train_mrc(
 ):
     """train 함수"""
     prev_eval_loss = float('inf')
-    prev_em = 0
-    prev_f1 = 0
     global_steps = 0
+    # TODO: loss 계산 로직 검증 필요
     train_acc_loss = 0
-    eval_acc_loss = 0
     train_acc_num = 0
+    eval_acc_loss = 0
     eval_acc_num = 0
     for epoch in range(int(training_args.num_train_epochs)):
         pbar = tqdm(
@@ -233,7 +225,7 @@ def train_mrc(
             global_steps += 1
             train_acc_num += len(batch['input_ids'])
 
-            description = f"epoch: {epoch+1:03d} | step: {global_steps:05d} | loss: {train_acc_loss/train_acc_num:.4f}"
+            description = f"epoch: {epoch+1:03d} | step: {global_steps:05d} | train loss: {train_acc_loss/train_acc_num:.4f}"
             pbar.set_description(description)
 
             if global_steps % training_args.eval_steps == 0:
@@ -242,34 +234,33 @@ def train_mrc(
                 eval_acc_loss += eval_loss
                 eval_acc_num += eval_num
                 if eval_acc_loss/eval_acc_num < prev_eval_loss:
+                    # TODO: 5개 저장됐을 때 삭제하는 로직 개발 필요
                     #torch.save(model.state_dict(), os.path.join(training_args.output_dir, f"checkpoint-{global_steps:05d}.pt"))
                     prev_eval_loss = eval_acc_loss/eval_acc_num
-                    prev_em = eval_metric['exact_match']
-                    prev_f1 = eval_metric['f1']
+                # TODO: 하이퍼파라미터(arguments) 정보 wandb에 기록하는 로직 필요
                 wandb.log({
+                    'global_steps': global_steps,
                     'train/loss': train_acc_loss/train_acc_num,
                     'train/learning_rate': training_args.learning_rate,
                     'eval/loss': eval_acc_loss/eval_acc_num,
                     'eval/exact_match' : eval_metric['exact_match'],
-                    'eval/f1_score' : eval_metric['f1'],
-                    'global_steps': global_steps                    
+                    'eval/f1_score' : eval_metric['f1']
                 })
-                train_acc_loss = 0
-                eval_acc_loss = 0
-                train_acc_num = 0
-                eval_acc_num = 0                
-            else:
-                wandb.log({'global_steps':global_steps})   
-                    # 네...마자요 불러오는 부분에서 수정이 좀 있어야 할거 가타여 ㅋㅋㅋㅋㅋ
-                    # 내일은 뭐라도 기여를 해보겠습니다 오늘은 영 정신이 맑지가 않네요ㅠㅠ
-                    # 잘 분리돼서 나오면 좋겠네요..< who?
                 
+            else:
+                wandb.log({'global_steps':global_steps})
+
+        train_acc_loss = 0
+        eval_acc_loss = 0
+        train_acc_num = 0
+        eval_acc_num = 0        
+
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    dataset_args, model_args, retriever_args, training_args = get_args()
+    default_args, dataset_args, model_args, retriever_args, training_args = get_args()
     update_save_path(training_args)
-    set_logging(dataset_args, model_args, retriever_args, training_args)
+    set_logging(default_args, dataset_args, model_args, retriever_args, training_args)
 
     model, tokenizer, optimizer = get_model(model_args, training_args)
     model.to(device)
@@ -277,18 +268,15 @@ def main():
     datasets, train_dataset, eval_dataset, eval_dataset_for_post, train_dataloader, eval_dataloader = get_data(dataset_args, training_args, tokenizer)
 
     # set wandb
-    wandb_entity = 'this-is-real'
-    wandb_project = 'mrc-xlm-roberta-large'
-    
     wandb.login()
     wandb.init(
-        project=wandb_project,
-        entity=wandb_entity,
+        project=default_args.wandb_project,
+        entity=default_args.wandb_entity,
         name=training_args.run_name
     )
 
     train_mrc(
-        dataset_args, model_args, retriever_args, training_args,
+        default_args, dataset_args, model_args, retriever_args, training_args,
         model, optimizer, tokenizer,
         datasets, train_dataset, eval_dataset, eval_dataset_for_post,
         train_dataloader, eval_dataloader,

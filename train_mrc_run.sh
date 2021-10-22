@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rm -rf ./models/*
+#rm -rf ./models/*
 python train_mrc.py \
   --run_name xlm_roberta_large_deepset3 \
   --output_dir ./models \
@@ -10,4 +10,5 @@ python train_mrc.py \
   --do_train \
   --do_eval \
   --evaluation_strategy steps \
-  --eval_steps 10 \
+  --eval_steps 100 \
+  --wandb_project mrc-xlm-roberta-large

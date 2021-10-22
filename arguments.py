@@ -98,3 +98,13 @@ class RetrieverArguments(BaseArguments):
 
     num_clusters: int = 64
     """num clusters to use for faiss"""
+
+@dataclass
+class DefaultArguments(BaseArguments):
+    """Default Arguments"""
+
+    wandb_entity: str = "this-is-real"
+    """wandb entity name"""
+
+    wandb_project: str = "mrc"
+    """wandb project name"""    
