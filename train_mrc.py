@@ -278,7 +278,7 @@ def train_mrc(
                 wandb.log({
                     'global_steps': global_steps,
                     'train/loss': train_loss_obj.get_avg_loss(),
-                    'train/learning_rate': training_args.learning_rate,
+                    'train/learning_rate': scheduler.get_lr(),
                     'eval/loss': eval_loss_obj.get_avg_loss(),
                     'eval/exact_match' : eval_metric['exact_match'],
                     'eval/f1_score' : eval_metric['f1']
