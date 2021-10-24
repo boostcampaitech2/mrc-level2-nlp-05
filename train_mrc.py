@@ -193,6 +193,38 @@ def get_scheduler(optimizer, train_dataloader, training_args):
     )
     return scheduler
 
+    
+def need_weight_freeze(model_args, epoch, max_epoch):
+
+    freeze = False
+
+    if model_args.freeze_pretrained_weight == 'all':
+        freeze = True
+    elif model_args.freeze_pretrained_weight == 'first':
+        assert model_args.freeze_pretrained_weight_epoch < max_epoch, '`freeze_pretrained_weight_epoch` cannot be larger than `num_train_epochs`'
+        if epoch <= model_args.freeze_pretrained_weight_epoch:
+            freeze = True
+    elif model_args.freeze_pretrained_weight == 'last':
+        assert model_args.freeze_pretrained_weight_epoch < max_epoch, '`freeze_pretrained_weight_epoch` cannot be larger than `num_train_epochs`'
+        if max_epoch - epoch <= model_args.freeze_pretrained_weight_epoch:
+            freeze = True
+            
+    return freeze
+
+
+def control_pretained_weight(model, freeze=False): #default_args, 
+    """pretrained weight freeze options - none, all, first, last"""
+    requires_grad = not freeze
+    for name, param in model.named_parameters():
+        if 'qa_outputs' not in name:
+            param.requires_grad = requires_grad
+    if freeze :
+        print('freeze')
+    else :
+        print('melt')
+    return model
+
+
 def train_step(model, optimizer, scheduler, batch, device):
     """각 training batch에 대한 모델 학습 및 train loss 계산 함수"""
     model.train()
@@ -248,13 +280,16 @@ def train_mrc(
     global_steps = 0
     train_loss_obj = LossObject()
     eval_loss_obj = LossObject()
-    for epoch in range(int(training_args.num_train_epochs)):
+    max_epoch = int(training_args.num_train_epochs)
+    for epoch in range(max_epoch):
         pbar = tqdm(
             enumerate(train_dataloader),
             total=len(train_dataloader),
             position=0,
             leave=True
         )
+        control_pretained_weight(model,freeze=need_weight_freeze(model_args, epoch+1, max_epoch))
+
         for step, batch in pbar:
             loss = train_step(model, optimizer, scheduler, batch, device)
 

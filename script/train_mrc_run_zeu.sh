@@ -1,6 +1,6 @@
 #!/bin/bash
 
-python train_mrc_freeze.py \
+python train_mrc.py \
   --run_name exp_freeze_xlm_roberta_large \
   --output_dir ./models \
   --model hanmaroo/xlm_roberta_large_korquad_v1 \
@@ -12,5 +12,5 @@ python train_mrc_freeze.py \
   --evaluation_strategy steps \
   --eval_steps 500 \
   --wandb_project mrc-freeze_test \
-  --freeze_pretrained_weight last \
+  --freeze_pretrained_weight first \
   --freeze_pretrained_weight_epoch 2
