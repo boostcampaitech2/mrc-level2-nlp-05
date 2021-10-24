@@ -207,7 +207,7 @@ def train_step(model, optimizer, scheduler, batch, device):
 
     return loss.item()
 
-def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, dataset_args, training_args, device):
+def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, dataset_args, training_args, checkpoint_folder, device):
     """모든 evaluation dataset에 대한 loss 및 metric 계산 함수"""
     metric = load_metric("squad")
     model.eval()
@@ -231,8 +231,17 @@ def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, 
 
     eval_dataset_for_predict.set_format(type=None, columns=list(eval_dataset_for_predict.features.keys()))
     predictions = (start_logits_list, end_logits_list)
+
+    output_dir_origin = training_args.output_dir
+
+    checkpoint_dir = os.path.join(output_dir_origin, checkpoint_folder)
+    training_args.output_dir = checkpoint_dir
+    os.makedirs(checkpoint_dir)
+    
     eval_preds = post_processing_function(datasets['validation'], eval_dataset_for_predict, datasets, predictions, training_args, dataset_args)
     eval_metric = metric.compute(predictions=eval_preds.predictions, references=eval_preds.label_ids) # compute_metrics
+
+    training_args.output_dir = output_dir_origin
     
     return eval_metric, loss, eval_num
 
@@ -265,14 +274,15 @@ def train_mrc(
             pbar.set_description(description)
 
             if global_steps % training_args.eval_steps == 0:
+                checkpoint_folder = f"checkpoint-{global_steps:05d}"
                 with torch.no_grad():
-                    eval_metric, eval_loss, eval_num = evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, dataset_args, training_args, device)
+                    eval_metric, eval_loss, eval_num = evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, dataset_args, training_args, checkpoint_folder, device)
 
                 eval_loss_obj.update(eval_loss, eval_num)
 
                 if eval_loss_obj.get_avg_loss() < prev_eval_loss:
                     # TODO: 5개 저장됐을 때 삭제하는 로직 개발 필요 -> huggingface format 모델 저장 필요
-                    model.save_pretrained(os.path.join(training_args.output_dir, f"checkpoint-{global_steps:05d}"))
+                    model.save_pretrained(os.path.join(training_args.output_dir, checkpoint_folder))
                     prev_eval_loss = eval_loss_obj.get_avg_loss()
                 # TODO: 하이퍼파라미터(arguments) 정보 wandb에 기록하는 로직 필요
                 wandb.log({
