@@ -193,22 +193,6 @@ def get_scheduler(optimizer, train_dataloader, training_args):
     )
     return scheduler
 
-def concat_context_logits(logits, dataset, max_len):
-    """각 batch의 logits을 하나로 합쳐주는 함수"""
-    step = 0
-    logits_concat = np.full((len(dataset), max_len), -100, dtype=np.float64)
-
-    for i, output_logit in enumerate(logits):
-        batch_size = output_logit.shape[0]
-        cols = output_logit.shape[1]
-        if step + batch_size < len(dataset):
-            logits_concat[step : step + batch_size, :cols] = output_logit
-        else:
-            logits_concat[step:, :cols] = output_logit[: len(dataset) - step]
-        step += batch_size
-
-    return logits_concat
-
 def train_step(model, optimizer, scheduler, batch, device):
     """각 training batch에 대한 모델 학습 및 train loss 계산 함수"""
     model.train()
@@ -242,16 +226,11 @@ def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, 
 
         start_logits = outputs['start_logits'] # (batch_size, token_num)
         end_logits = outputs['end_logits'] # (batch_size, token_num)
-        start_logits_list.append(start_logits.detach().cpu().numpy())
-        end_logits_list.append(end_logits.detach().cpu().numpy())
-
-    max_len = max(x.shape[1] for x in start_logits_list)
-
-    start_logits_concat = concat_context_logits(start_logits_list, eval_dataset_for_predict, max_len)
-    end_logits_concat = concat_context_logits(end_logits_list, eval_dataset_for_predict, max_len)
+        start_logits_list.extend(start_logits.detach().cpu().numpy())
+        end_logits_list.extend(end_logits.detach().cpu().numpy())
 
     eval_dataset_for_predict.set_format(type=None, columns=list(eval_dataset_for_predict.features.keys()))
-    predictions = (start_logits_concat, end_logits_concat)
+    predictions = (start_logits_list, end_logits_list)
     eval_preds = post_processing_function(datasets['validation'], eval_dataset_for_predict, datasets, predictions, training_args, dataset_args)
     eval_metric = metric.compute(predictions=eval_preds.predictions, references=eval_preds.label_ids) # compute_metrics
     
