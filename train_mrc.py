@@ -273,6 +273,8 @@ def train_mrc(
             description = f"epoch: {epoch+1:03d} | step: {global_steps:05d} | train loss: {train_loss_obj.get_avg_loss():.4f}"
             pbar.set_description(description)
 
+            lr = scheduler.get_last_lr()
+
             if global_steps % training_args.eval_steps == 0:
                 checkpoint_folder = f"checkpoint-{global_steps:05d}"
                 with torch.no_grad():
@@ -288,7 +290,7 @@ def train_mrc(
                 wandb.log({
                     'global_steps': global_steps,
                     'train/loss': train_loss_obj.get_avg_loss(),
-                    'train/learning_rate': scheduler.get_lr(),
+                    'train/learning_rate': lr,
                     'eval/loss': eval_loss_obj.get_avg_loss(),
                     'eval/exact_match' : eval_metric['exact_match'],
                     'eval/f1_score' : eval_metric['f1']
@@ -297,7 +299,10 @@ def train_mrc(
                 eval_loss_obj.reset()            
                 
             else:
-                wandb.log({'global_steps':global_steps})
+                wandb.log({
+                    'global_steps':global_steps,
+                    'train/learning_rate': lr
+                })
 
 def main():
     default_args, dataset_args, model_args, retriever_args, training_args = get_args()
