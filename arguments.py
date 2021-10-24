@@ -110,4 +110,10 @@ class DefaultArguments(BaseArguments):
     """wandb entity name"""
 
     wandb_project: str = "mrc"
-    """wandb project name"""    
+    """wandb project name"""
+
+    freeze_pretrained_weight: str = "none"
+    """freeze pretrained weight : none, all, first, last"""
+
+    freeze_pretrained_weight_epoch: int = 1
+    """freeze pretrained weight epoch"""
