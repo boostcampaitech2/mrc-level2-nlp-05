@@ -37,7 +37,8 @@ from retrieval import SparseRetrieval
 
 from arguments import (
     ModelArguments,
-    DataTrainingArguments,
+    DatasetArguments,
+    RetrieverArguments
 )
 
 
@@ -49,14 +50,14 @@ def main():
     # --help flag 를 실행시켜서 확인할 수 도 있습니다.
 
     parser = HfArgumentParser(
-        (ModelArguments, DataTrainingArguments, TrainingArguments)
+        (DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments)
     )
-    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    data_args, model_args, retriever_args, training_args = parser.parse_args_into_dataclasses()
     # 인스턴스 클래스로 감싸주는 거 하면 좋을 듯!
     training_args.do_train = True
 
-    print(f"model is from {model_args.model_name_or_path}")
-    print(f"data is from {data_args.dataset_name}")
+    print(f"model is from {model_args.model}")
+    print(f"data is from {data_args.dataset_path}")
 
     # logging 설정
     logging.basicConfig(
@@ -71,36 +72,37 @@ def main():
     # 모델을 초기화하기 전에 난수를 고정합니다.
     set_seed(training_args.seed)
 
-    datasets = load_from_disk(data_args.dataset_name)
+    datasets = load_from_disk(data_args.dataset_path)
     print(datasets)
 
     # AutoConfig를 이용하여 pretrained model 과 tokenizer를 불러옵니다.
     # argument로 원하는 모델 이름을 설정하면 옵션을 바꿀 수 있습니다.
     config = AutoConfig.from_pretrained(
-        model_args.config_name
-        if model_args.config_name
-        else model_args.model_name_or_path,
+        model_args.config
+        if model_args.config
+        else model_args.model,
     )
     tokenizer = AutoTokenizer.from_pretrained(
-        model_args.tokenizer_name
-        if model_args.tokenizer_name
-        else model_args.model_name_or_path,
+        model_args.tokenizer
+        if model_args.tokenizer
+        else model_args.model,
         use_fast=True,
     )
     model = AutoModelForQuestionAnswering.from_pretrained(
-        model_args.model_name_or_path,
-        from_tf=bool(".ckpt" in model_args.model_name_or_path),
+        model_args.model,
+        from_tf=bool(".ckpt" in model_args.model),
         config=config,
     )
 
     # True일 경우 : run passage retrieval
-    # eval_retrieval의 default는? true
-    if data_args.eval_retrieval:
+    # use_eval_retrieval default는? true
+    if retriever_args.use_eval_retrieval:
         datasets = run_sparse_retrieval(
             tokenizer.tokenize,
             datasets,
             training_args,
             data_args,
+            retriever_args
         )
 
     # eval or predict mrc model
@@ -113,7 +115,8 @@ def run_sparse_retrieval(
     tokenize_fn: Callable[[str], List[str]],
     datasets: DatasetDict,
     training_args: TrainingArguments,
-    data_args: DataTrainingArguments,
+    data_args: DatasetArguments,
+    retriever_args: RetrieverArguments,
     data_path: str = "../data",
     context_path: str = "wikipedia_documents.json",
 ) -> DatasetDict:
@@ -124,13 +127,13 @@ def run_sparse_retrieval(
     )
     retriever.get_sparse_embedding_bm25()
 
-    if data_args.use_faiss:
-        retriever.build_faiss(num_clusters=data_args.num_clusters)
+    if retriever_args.use_faiss:
+        retriever.build_faiss(num_clusters=retriever_args.num_clusters)
         df = retriever.retrieve_faiss(
-            datasets["validation"], topk=data_args.top_k_retrieval
+            datasets["validation"], topk=retriever_args.top_k_retrieval
         )
     else:
-        df = retriever.retrieve(datasets["validation"], topk=data_args.top_k_retrieval)
+        df = retriever.retrieve(datasets["validation"], topk=retriever_args.top_k_retrieval)
     
     # print(df)
     # df 에는 context와 질문이 들어있음
@@ -169,7 +172,7 @@ def run_sparse_retrieval(
 
 
 def run_mrc(
-    data_args: DataTrainingArguments,
+    data_args: DatasetArguments,
     training_args: TrainingArguments,
     model_args: ModelArguments,
     datasets: DatasetDict,
@@ -203,11 +206,11 @@ def run_mrc(
             examples[context_column_name if pad_on_right else question_column_name],
             truncation="only_second" if pad_on_right else "only_first",
             max_length=max_seq_length,
-            stride=data_args.doc_stride,
+            stride=data_args.stride_len,
             return_overflowing_tokens=True,
             return_offsets_mapping=True,
             return_token_type_ids=False, # roberta모델을 사용할 경우 False, bert를 사용할 경우 True로 표기해야합니다.
-            padding="max_length" if data_args.pad_to_max_length else False,
+            padding="max_length" if data_args.use_max_padding else False,
         )
 
         # 길이가 긴 context가 등장할 경우 truncate를 진행해야하므로, 해당 데이터셋을 찾을 수 있도록 mapping 가능한 값이 필요합니다.
@@ -239,7 +242,7 @@ def run_mrc(
     eval_dataset = eval_dataset.map(
         prepare_validation_features,
         batched=True,
-        num_proc=data_args.preprocessing_num_workers,
+        num_proc=data_args.num_workers,
         remove_columns=column_names,
         load_from_cache_file=not data_args.overwrite_cache,
     )
@@ -263,7 +266,7 @@ def run_mrc(
             examples=examples,
             features=features,
             predictions=predictions,
-            max_answer_length=data_args.max_answer_length,
+            max_answer_length=data_args.max_ans_len,
             output_dir=training_args.output_dir,
         )
         # Metric을 구할 수 있도록 Format을 맞춰줍니다.
