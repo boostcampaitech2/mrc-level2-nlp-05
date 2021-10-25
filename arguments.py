@@ -115,6 +115,9 @@ class RetrieverArguments(BaseArguments):
 class DefaultArguments(BaseArguments):
     """Default Arguments"""
 
+    description: str = ""
+    """brief description of the experiment"""
+
     log_level: str = "INFO"
     """logging level"""
 
