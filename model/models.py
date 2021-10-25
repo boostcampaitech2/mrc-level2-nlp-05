@@ -14,3 +14,12 @@ class BaseModel(nn.Module):
         
     def forward(self, x):
         return F.relu(self.fc(x))
+
+class CustomHeadBase(nn.Module):
+    def __init__(self, config):
+        super(CustomHeadBase, self).__init__()
+        self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
+        
+    def forward(self, hidden_states):
+        # hidden_states: (batch_size, max_seq_len, backbone_model_output_dim)
+        return self.qa_outputs(hidden_states)

@@ -33,7 +33,6 @@ from datasets import load_from_disk, load_metric
 
 from preprocessor import BaselinePreprocessor
 from postprocessor import post_processing_function
-from model.models import BaseModel
 from retrieval import SparseRetrieval
 from utils import increment_path, LossObject
 
@@ -121,8 +120,12 @@ def get_model(model_args, training_args):
     model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model, from_tf=bool(".ckpt" in model_args.model), config=config
     )
-    # TODO: load custom model here
-    #model.qa_outputs = CustomModel(config)
+
+    if model_args.head is not None:
+        logger.info("Apply Custom Head")
+        custom_head_module = getattr(import_module('model.models'), model_args.head)
+        custom_head = custom_head_module(config)
+        model.qa_outputs = custom_head
 
     # optimizer
     optimizer = AdamW(
