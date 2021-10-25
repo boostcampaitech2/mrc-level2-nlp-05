@@ -360,6 +360,11 @@ def main():
         entity=default_args.wandb_entity,
         name=training_args.run_name
     )
+    wandb.config.update(default_args)
+    wandb.config.update(dataset_args)
+    wandb.config.update(model_args)
+    wandb.config.update(retriever_args)
+    wandb.config.update(training_args)    
 
     train_mrc(
         default_args, dataset_args, model_args, retriever_args, training_args,
