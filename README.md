@@ -21,3 +21,5 @@
   7. 🔴 argparser 구현 - model, config, tokenizer, preprocessor, retriever 부분에 해당하는 argument parser 구현 및 연동을 작성해야 합니다. (due Oct 21)
 
   8. 🟡 custom classification head 구현 - custom model의 경우 다양한 백본 모델의 config를 토대로 자동으로 custom classification head를 붙여주는 코드를 제작할 예정입니다. 4번 항목과 연관된 내용입니다. (due Oct 22) 
+
+  9. 🟢 pretrained weight를 freeze 시키기 위해서는 --freeze_pretrained_weight라는 인자를 사용하면 됩니다. 인자는 'none', 'all', 'first', 'last' 4개의 옵션이 있으며, 자세한 내용은 arguments.py에 작성되어 있습니다. 추가로 first, last 옵션을 사용할때는 freeze_pretrained_weight_epoch 옵션을 같이 사용할 수 있습니다. (finished Oct 26)

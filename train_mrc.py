@@ -206,14 +206,15 @@ def need_weight_freeze(model_args, epoch, max_epoch):
             freeze = True
     elif model_args.freeze_pretrained_weight == 'last':
         assert model_args.freeze_pretrained_weight_epoch < max_epoch, '`freeze_pretrained_weight_epoch` cannot be larger than `num_train_epochs`'
-        if max_epoch - epoch <= model_args.freeze_pretrained_weight_epoch:
+        if max_epoch - epoch < model_args.freeze_pretrained_weight_epoch:
             freeze = True
             
     return freeze
 
 
-def control_pretained_weight(model, freeze=False): #default_args, 
+def control_pretained_weight(model, freeze=False): 
     """pretrained weight freeze options - none, all, first, last"""
+    
     requires_grad = not freeze
     for name, param in model.named_parameters():
         if 'qa_outputs' not in name:
