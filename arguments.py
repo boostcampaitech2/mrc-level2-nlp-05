@@ -91,6 +91,9 @@ class ModelArguments(BaseArguments):
     freeze_pretrained_weight_epoch: int = 1
     """freeze pretrained weight epoch"""
 
+    freeze_embedding_layer_weight: bool = False
+    """freeze embedding layer's weight"""
+
 
 @dataclass
 class RetrieverArguments(BaseArguments):
