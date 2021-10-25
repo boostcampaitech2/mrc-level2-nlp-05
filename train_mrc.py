@@ -309,7 +309,7 @@ def train_mrc(
             description = f"epoch: {epoch+1:03d} | step: {global_steps:05d} | train loss: {train_loss_obj.get_avg_loss():.4f}"
             pbar.set_description(description)
 
-            lr = scheduler.get_last_lr()
+            lr = scheduler.get_last_lr()[0]
 
             if global_steps % training_args.eval_steps == 0:
                 checkpoint_folder = f"checkpoint-{global_steps:05d}"
@@ -325,8 +325,8 @@ def train_mrc(
                 # TODO: 하이퍼파라미터(arguments) 정보 wandb에 기록하는 로직 필요
                 wandb.log({
                     'global_steps': global_steps,
+                    'learning_rate': lr,
                     'train/loss': train_loss_obj.get_avg_loss(),
-                    'train/learning_rate': lr,
                     'eval/loss': eval_loss_obj.get_avg_loss(),
                     'eval/exact_match' : eval_metric['exact_match'],
                     'eval/f1_score' : eval_metric['f1']
@@ -337,7 +337,7 @@ def train_mrc(
             else:
                 wandb.log({
                     'global_steps':global_steps,
-                    'train/learning_rate': lr
+                    'learning_rate': lr
                 })
 
 def main():
