@@ -142,9 +142,12 @@ results/
 *.bin.gz
 nohup.out
 runs/
+outputs/
 
 # vscode
 .vscode
 
 # etc
 ipynb/shkim/
+
+.java/
