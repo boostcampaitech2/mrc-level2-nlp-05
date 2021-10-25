@@ -220,9 +220,9 @@ def control_pretained_weight(model, freeze=False):
         if 'qa_outputs' not in name:
             param.requires_grad = requires_grad
     if freeze :
-        print('freeze')
+        logger.info("Current epoch's freeze status: freeze")
     else :
-        print('melt')
+        logger.info("Current epoch's freeze status: unfreeze")
     return model
 
 
