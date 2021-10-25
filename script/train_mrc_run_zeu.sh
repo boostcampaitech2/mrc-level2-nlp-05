@@ -1,16 +1,29 @@
 #!/bin/bash
 
-python train_mrc.py \
-  --run_name exp_freeze_xlm_roberta_large \
+# python train_mrc.py \
+#   --run_name exp_freeze_xlm_roberta_large \
+#   --output_dir ./models \
+#   --model hanmaroo/xlm_roberta_large_korquad_v1 \
+#   --num_train_epochs 4 \
+#   --warmup_steps 500 \
+#   --use_max_padding \
+#   --do_train \
+#   --do_eval \
+#   --evaluation_strategy steps \
+#   --eval_steps 500 \
+#   --wandb_project mrc-freeze_test \
+#   --freeze_pretrained_weight first \
+#   --freeze_pretrained_weight_epoch 2
+
+  python train_mrc.py \
+  --run_name exp006_klue_roberta_base_freeze \
   --output_dir ./models \
-  --model hanmaroo/xlm_roberta_large_korquad_v1 \
-  --num_train_epochs 4 \
-  --warmup_steps 500 \
+  --model klue/roberta-base \
+  --num_train_epochs 5 \
   --use_max_padding \
-  --do_train \
-  --do_eval \
-  --evaluation_strategy steps \
   --eval_steps 500 \
-  --wandb_project mrc-freeze_test \
+  --do_eval \
+	--warmup_steps 500 \
+  --wandb_project mrc-klue-based-models \
   --freeze_pretrained_weight first \
-  --freeze_pretrained_weight_epoch 2
+  --freeze_pretrained_weight_epoch 1

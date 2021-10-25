@@ -212,7 +212,7 @@ def need_weight_freeze(model_args, epoch, max_epoch):
     return freeze
 
 
-def control_pretained_weight(model, freeze=False): #default_args, 
+def control_pretained_weight(model, freeze=False): 
     """pretrained weight freeze options - none, all, first, last"""
     requires_grad = not freeze
     for name, param in model.named_parameters():
