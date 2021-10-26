@@ -15,8 +15,8 @@
 #   --freeze_pretrained_weight first \
 #   --freeze_pretrained_weight_epoch 2
 
-  python train_mrc.py \
-    --run_name exp006_large_freeze_embed \
+  python train_mrc_grad_reduction.py \
+    --run_name exp006_grad_reduction \
     --output_dir ./models \
     --model klue/roberta-large \
     --num_train_epochs 5 \
@@ -24,7 +24,4 @@
     --eval_steps 500 \
     --do_eval \
     --warmup_steps 500 \
-    --wandb_project mrc-freeze_exp \
-    --freeze_pretrained_weight first \
-    --freeze_pretrained_weight_epoch 2 \
-    --freeze_embedding_layer_weight True
+    --wandb_project mrc-freeze_test
