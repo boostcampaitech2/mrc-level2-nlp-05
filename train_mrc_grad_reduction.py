@@ -33,6 +33,7 @@ from datasets import load_from_disk, load_metric
 
 from preprocessor import BaselinePreprocessor
 from postprocessor import post_processing_function
+from model.models import BaseModel
 from retrieval import SparseRetrieval
 from utils import increment_path, LossObject
 
@@ -120,13 +121,8 @@ def get_model(model_args, training_args):
     model = AutoModelForQuestionAnswering.from_pretrained(
         model_args.model, from_tf=bool(".ckpt" in model_args.model), config=config
     )
-
-    config.dropout_ratio = model_args.head_dropout_ratio
-    if model_args.head is not None:
-        logger.info("Apply Custom Head")
-        custom_head_module = getattr(import_module('model.models'), model_args.head)
-        custom_head = custom_head_module(config)
-        model.qa_outputs = custom_head
+    # TODO: load custom model here
+    #model.qa_outputs = CustomModel(config)
 
     # optimizer
     optimizer = AdamW(
@@ -188,13 +184,12 @@ def get_data(dataset_args, training_args, tokenizer):
 
     return datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader
 
-def get_scheduler(optimizer, train_dataloader, training_args, model_args):
+def get_scheduler(optimizer, train_dataloader, training_args):
     num_training_steps = len(train_dataloader) // training_args.gradient_accumulation_steps * training_args.num_train_epochs
     scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
         optimizer,
         num_warmup_steps=training_args.warmup_steps,
-        num_training_steps=num_training_steps,
-        num_cycles=model_args.warmup_cycles
+        num_training_steps=num_training_steps
     )
     return scheduler
 
@@ -237,6 +232,12 @@ def control_pretained_weight(model, model_args, freeze=False):
         logger.info("Current epoch's embedding layer status: unfreeze")
 
     return model
+
+def grad_reduction_hook(module, grad_input, grad_outputs):
+    print('module:', module)
+    print('grad_input:', grad_input)#grad_input: (tensor(0.5000, device='cuda:0'), None)
+    print('grad_outputs:', grad_outputs)#grad_outputs: (tensor(1., device='cuda:0'),)
+
 
 
 def train_step(model, optimizer, scheduler, batch, device):
@@ -301,10 +302,10 @@ def train_mrc(
     """MRC 모델 학습 및 평가 함수"""
     prev_eval_loss = float('inf')
     global_steps = 0
-    best_checkpoint = ""
     train_loss_obj = LossObject()
     eval_loss_obj = LossObject()
     max_epoch = int(training_args.num_train_epochs)
+    model.register_backward_hook(grad_reduction_hook)
     for epoch in range(max_epoch):
         pbar = tqdm(
             enumerate(train_dataloader),
@@ -313,7 +314,6 @@ def train_mrc(
             leave=True
         )
         control_pretained_weight(model, model_args, freeze=need_weight_freeze(model_args, epoch+1, max_epoch))
-
         for step, batch in pbar:
             loss = train_step(model, optimizer, scheduler, batch, device)
 
@@ -323,7 +323,7 @@ def train_mrc(
             description = f"epoch: {epoch+1:03d} | step: {global_steps:05d} | train loss: {train_loss_obj.get_avg_loss():.4f}"
             pbar.set_description(description)
 
-            lr = scheduler.get_last_lr()[0]
+            lr = scheduler.get_last_lr()
 
             if global_steps % training_args.eval_steps == 0:
                 checkpoint_folder = f"checkpoint-{global_steps:05d}"
@@ -332,14 +332,15 @@ def train_mrc(
 
                 eval_loss_obj.update(eval_loss, eval_num)
 
-                if eval_loss_obj.get_avg_loss() < prev_eval_loss:
-                    best_checkpoint = checkpoint_folder
+                if eval_loss_obj.get_avg_loss() <= prev_eval_loss:
+                    # TODO: 5개 저장됐을 때 삭제하는 로직 개발 필요 -> huggingface format 모델 저장 필요
                     model.save_pretrained(os.path.join(training_args.output_dir, checkpoint_folder))
                     prev_eval_loss = eval_loss_obj.get_avg_loss()
+                # TODO: 하이퍼파라미터(arguments) 정보 wandb에 기록하는 로직 필요
                 wandb.log({
                     'global_steps': global_steps,
-                    'learning_rate': lr,
                     'train/loss': train_loss_obj.get_avg_loss(),
+                    'train/learning_rate': lr,
                     'eval/loss': eval_loss_obj.get_avg_loss(),
                     'eval/exact_match' : eval_metric['exact_match'],
                     'eval/f1_score' : eval_metric['f1']
@@ -350,10 +351,8 @@ def train_mrc(
             else:
                 wandb.log({
                     'global_steps':global_steps,
-                    'learning_rate': lr
+                    'train/learning_rate': lr
                 })
-
-    logger.info(f"Best model in {best_checkpoint}")
 
 def main():
     default_args, dataset_args, model_args, retriever_args, training_args = get_args()
@@ -367,7 +366,7 @@ def main():
 
     datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader = get_data(dataset_args, training_args, tokenizer)
 
-    scheduler = get_scheduler(optimizer, train_dataloader, training_args, model_args)
+    scheduler = get_scheduler(optimizer, train_dataloader, training_args)
 
     # set wandb
     wandb.login()

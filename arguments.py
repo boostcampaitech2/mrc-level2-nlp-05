@@ -76,6 +76,9 @@ class ModelArguments(BaseArguments):
     head: str = None
     """output head"""
 
+    head_dropout_ratio: float = 0.1
+    """dropout ratio for custom head"""
+
     loss_fn: Loss = Loss.CE
     """loss function used internally in the model"""
 
@@ -93,6 +96,9 @@ class ModelArguments(BaseArguments):
 
     freeze_embedding_layer_weight: bool = False
     """freeze embedding layer's weight"""
+    
+    warmup_cycles: int = 1
+    """the number of hard restarts to use in cosine warmup"""
 
 
 @dataclass
@@ -117,6 +123,9 @@ class RetrieverArguments(BaseArguments):
 @dataclass
 class DefaultArguments(BaseArguments):
     """Default Arguments"""
+
+    description: str = ""
+    """brief description of the experiment"""
 
     log_level: str = "INFO"
     """logging level"""
