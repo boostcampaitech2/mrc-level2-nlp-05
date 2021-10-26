@@ -127,4 +127,3 @@ class DefaultArguments(BaseArguments):
     wandb_project: str = "mrc"
     """wandb project name"""
 
-    
