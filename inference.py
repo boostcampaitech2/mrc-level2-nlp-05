@@ -6,6 +6,7 @@ Open-Domain Question Answering 을 수행하는 inference 코드 입니다.
 
 
 import logging
+import os
 import sys
 from typing import Callable, List, Dict, NoReturn, Tuple
 
@@ -20,6 +21,8 @@ from datasets import (
     Dataset,
     DatasetDict,
 )
+
+import torch
 
 from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer
 
@@ -41,6 +44,7 @@ from arguments import (
     RetrieverArguments
 )
 
+from importlib import import_module
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +97,16 @@ def main():
         from_tf=bool(".ckpt" in model_args.model),
         config=config,
     )
+
+    config.dropout_ratio = model_args.head_dropout_ratio
+    if model_args.head is not None:
+        custom_head_module = getattr(import_module('model.models'), model_args.head)
+        custom_head = custom_head_module(config)
+        model.qa_outputs = custom_head
+        model.load_state_dict(torch.load(os.path.join(model_args.model, model_args.saved_checkpoint)))
+
+    # for name, params in model.qa_outputs.named_parameters():
+    #     print(f"name: {name}\n{params}")
 
     # True일 경우 : run passage retrieval
     # use_eval_retrieval default는? true

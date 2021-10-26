@@ -79,6 +79,9 @@ class ModelArguments(BaseArguments):
     head_dropout_ratio: float = 0.1
     """dropout ratio for custom head"""
 
+    saved_checkpoint: str = None
+    """saved checkpoint(.pt) file name"""
+
     loss_fn: Loss = Loss.CE
     """loss function used internally in the model"""
 

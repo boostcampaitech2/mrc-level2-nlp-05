@@ -1,6 +1,7 @@
 import os
 import sys
 import wandb
+import shutil
 import logging
 import random
 import numpy as np
@@ -34,7 +35,7 @@ from datasets import load_from_disk, load_metric
 from preprocessor import BaselinePreprocessor
 from postprocessor import post_processing_function
 from retrieval import SparseRetrieval
-from utils import increment_path, LossObject
+from utils import increment_path, LossObject, SaveLimitObject
 
 logger = logging.getLogger(__name__)
 
@@ -297,6 +298,7 @@ def train_mrc(
     train_loss_obj = LossObject()
     eval_loss_obj = LossObject()
     max_epoch = int(training_args.num_train_epochs)
+    save_limit_obj = SaveLimitObject(training_args.save_total_limit) if training_args.save_total_limit is not None else None
     for epoch in range(max_epoch):
         pbar = tqdm(
             enumerate(train_dataloader),
@@ -319,15 +321,29 @@ def train_mrc(
 
             if global_steps % training_args.eval_steps == 0:
                 checkpoint_folder = f"checkpoint-{global_steps:05d}"
+
                 with torch.no_grad():
-                    eval_metric, eval_loss, eval_num = evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, dataset_args, training_args, checkpoint_folder, device)
+                    eval_metric, eval_loss, eval_num = evaluation_step(
+                        model, datasets, eval_dataset_for_predict, eval_dataloader,
+                        dataset_args, training_args,
+                        checkpoint_folder, device
+                    )
 
                 eval_loss_obj.update(eval_loss, eval_num)
 
+                save_path = os.path.join(training_args.output_dir, checkpoint_folder)
                 if eval_loss_obj.get_avg_loss() < prev_eval_loss:
-                    best_checkpoint = checkpoint_folder
-                    model.save_pretrained(os.path.join(training_args.output_dir, checkpoint_folder))
+                    if save_limit_obj is not None:
+                        save_limit_obj.update(save_path)    
+
+                    model.save_pretrained(save_path) # save for huggingface model
+                    torch.save(model.state_dict(), os.path.join(save_path, f"{checkpoint_folder}.pt")) # save for custom head
+                    
                     prev_eval_loss = eval_loss_obj.get_avg_loss()
+                    best_checkpoint = checkpoint_folder
+                else:
+                    shutil.rmtree(save_path)
+
                 wandb.log({
                     'global_steps': global_steps,
                     'learning_rate': lr,
