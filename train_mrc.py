@@ -332,7 +332,7 @@ def train_mrc(
                 eval_loss_obj.update(eval_loss, eval_num)
 
                 save_path = os.path.join(training_args.output_dir, checkpoint_folder)
-                if eval_loss_obj.get_avg_loss() < prev_eval_loss:
+                if eval_loss_obj.get_avg_loss() <= prev_eval_loss:
                     if save_limit_obj is not None:
                         save_limit_obj.update(save_path)    
 
