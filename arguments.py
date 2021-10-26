@@ -76,6 +76,9 @@ class ModelArguments(BaseArguments):
     head: str = None
     """output head"""
 
+    head_dropout_ratio: float = 0.1
+    """dropout ratio for custom head"""
+
     loss_fn: Loss = Loss.CE
     """loss function used internally in the model"""
 
@@ -90,6 +93,9 @@ class ModelArguments(BaseArguments):
 
     freeze_pretrained_weight_epoch: int = 1
     """freeze pretrained weight epoch"""
+
+    warmup_cycles: int = 1
+    """the number of hard restarts to use in cosine warmup"""
 
 
 @dataclass

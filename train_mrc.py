@@ -121,6 +121,7 @@ def get_model(model_args, training_args):
         model_args.model, from_tf=bool(".ckpt" in model_args.model), config=config
     )
 
+    config.dropout_ratio = model_args.head_dropout_ratio
     if model_args.head is not None:
         logger.info("Apply Custom Head")
         custom_head_module = getattr(import_module('model.models'), model_args.head)
@@ -187,12 +188,13 @@ def get_data(dataset_args, training_args, tokenizer):
 
     return datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader
 
-def get_scheduler(optimizer, train_dataloader, training_args):
+def get_scheduler(optimizer, train_dataloader, training_args, model_args):
     num_training_steps = len(train_dataloader) // training_args.gradient_accumulation_steps * training_args.num_train_epochs
     scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
         optimizer,
         num_warmup_steps=training_args.warmup_steps,
-        num_training_steps=num_training_steps
+        num_training_steps=num_training_steps,
+        num_cycles=model_args.warmup_cycles
     )
     return scheduler
 
@@ -291,6 +293,7 @@ def train_mrc(
     """MRC 모델 학습 및 평가 함수"""
     prev_eval_loss = float('inf')
     global_steps = 0
+    best_checkpoint = ""
     train_loss_obj = LossObject()
     eval_loss_obj = LossObject()
     max_epoch = int(training_args.num_train_epochs)
@@ -322,10 +325,9 @@ def train_mrc(
                 eval_loss_obj.update(eval_loss, eval_num)
 
                 if eval_loss_obj.get_avg_loss() < prev_eval_loss:
-                    # TODO: 5개 저장됐을 때 삭제하는 로직 개발 필요 -> huggingface format 모델 저장 필요
+                    best_checkpoint = checkpoint_folder
                     model.save_pretrained(os.path.join(training_args.output_dir, checkpoint_folder))
                     prev_eval_loss = eval_loss_obj.get_avg_loss()
-                # TODO: 하이퍼파라미터(arguments) 정보 wandb에 기록하는 로직 필요
                 wandb.log({
                     'global_steps': global_steps,
                     'learning_rate': lr,
@@ -343,6 +345,8 @@ def train_mrc(
                     'learning_rate': lr
                 })
 
+    logger.info(f"Best model in {best_checkpoint}")
+
 def main():
     default_args, dataset_args, model_args, retriever_args, training_args = get_args()
     set_logging(default_args, dataset_args, model_args, retriever_args, training_args)
@@ -355,7 +359,7 @@ def main():
 
     datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader = get_data(dataset_args, training_args, tokenizer)
 
-    scheduler = get_scheduler(optimizer, train_dataloader, training_args)
+    scheduler = get_scheduler(optimizer, train_dataloader, training_args, model_args)
 
     # set wandb
     wandb.login()
