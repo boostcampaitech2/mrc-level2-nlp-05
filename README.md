@@ -2,6 +2,20 @@
 
 ## Boostcamp AI-Tech 2기
 
+### DPR 진행 정도
+- 베이스라인 작업 완료되면 한번 다시 작동 여부 확인 필요
+- Trainer 쪽 eval loss 쪽 추가 얼른... -> WandB 연동으로 학습 확인 필요!
+
+<br>
+
+### 실험 및 기능 추가 예정
+- 현재 multilingual BERT 기준, KLUE 베이스라인 기준으로도 성능 확인 후 parser 로 변경 가능하게 수정
+- Tokenizer max_length -> 최대로 가져가기...! -> 실험
+- `Retrieval.py`의 `main()` 으로 sparse, dense PR train set 에 대해 각각 출력하게 수정 *Accuracy + Precision @ k* 함수 추가하기
+
+
+<br>
+
 ## Updates
 
 * (1:10, Oct 21) 베이스라인 리팩토링 한 것을 올려놨습니다! 다 수정하지는 않았고, 일단 돌아가게만 해놓은 상태라고 보시면 됩니다. 자세한 내용 및 앞으로 구현해야 되는 사항은 아래와 같습니다.

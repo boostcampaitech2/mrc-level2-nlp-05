@@ -33,7 +33,8 @@ from transformers import (
 
 from utils_qa import postprocess_qa_predictions, check_no_error
 from trainer_qa import QuestionAnsweringTrainer
-from retrieval import SparseRetrieval
+from retrieval import SparseRetrieval, DenseRetrieval
+from train_dpr import get_dense_args
 
 from arguments import (
     ModelArguments,
@@ -97,7 +98,7 @@ def main():
     # True일 경우 : run passage retrieval
     # use_eval_retrieval default는? true
     if retriever_args.use_eval_retrieval:
-        datasets = run_sparse_retrieval(
+        datasets = run_retrieval(
             tokenizer.tokenize,
             datasets,
             training_args,
@@ -111,7 +112,7 @@ def main():
 
 
 # 
-def run_sparse_retrieval(
+def run_retrieval(
     tokenize_fn: Callable[[str], List[str]],
     datasets: DatasetDict,
     training_args: TrainingArguments,
@@ -121,19 +122,21 @@ def run_sparse_retrieval(
     context_path: str = "wikipedia_documents.json",
 ) -> DatasetDict:
 
-    # Query에 맞는 Passage들을 Retrieval 합니다.
-    retriever = SparseRetrieval(
-        tokenize_fn=tokenize_fn, data_path=data_path, context_path=context_path
-    )
-    retriever.get_sparse_embedding_bm25()
+    # select retriever type and necessary arguments
+    if retriever_args.retriever_type == 'SparseRetrieval':
+        retriever = SparseRetrieval(
+        tokenize=tokenize_fn, data_path=data_path, context_path=context_path
+        ) 
+        retriever.get_sparse_embedding_bm25()
 
-    if retriever_args.use_faiss:
-        retriever.build_faiss(num_clusters=retriever_args.num_clusters)
-        df = retriever.retrieve_faiss(
-            datasets["validation"], topk=retriever_args.top_k_retrieval
-        )
+    elif retriever_args.retriever_type == 'DenseRetrieval':
+        args, get_dense_args()
+        retriever = DenseRetrieval(args=args,dataset=datasets["validation"],
+                                   tokenizer=tokenize_fn,p_encoder=p_encoder,q_encoder=q_encoder)
+
     else:
-        df = retriever.retrieve(datasets["validation"], topk=retriever_args.top_k_retrieval)
+        print('Check your spelling!')
+        raise KeyboardInterrupt
     
     # print(df)
     # df 에는 context와 질문이 들어있음

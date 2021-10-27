@@ -59,7 +59,6 @@ class DatasetArguments(BaseArguments):
     overwrite_cache: bool = True
     """overwrite cache file if True"""
 
-
 @dataclass
 class ModelArguments(BaseArguments):
     """Model Arguements"""
@@ -84,17 +83,37 @@ class ModelArguments(BaseArguments):
 class RetrieverArguments(BaseArguments):
     """Retriever Arguments"""
 
-    retriver: str = "tf-idf"
+    retriever_type: str = "SparseRetrieval"
     """name of retriever"""
 
     top_k_retrieval: int = 1
     """numb top-k passages to retrieve"""
 
-    use_eval_retrieval: bool = True
-    """whether to run retrieval on eval"""
+    num_negs: int = 2
+    """numb of negative samples for in-batch negatives"""
 
-    use_faiss: bool = False
-    """whether to build with faiss"""
+    dpr_model: str =  "bert-base-multilingual-cased"
+    """path to pretrained model or model identifier from huggingface.co/models"""    
 
-    num_clusters: int = 64
-    """num clusters to use for faiss"""
+    # use_eval_retrieval: bool = True
+    # """whether to run retrieval on eval"""
+
+    # use_faiss: bool = False
+    # """whether to build with faiss"""
+
+    # num_clusters: int = 64
+    # """num clusters to use for faiss"""
+    dpr_learning_rate: float = 3e-5
+    """learning rate for DPR fine-tuning"""
+
+    dpr_train_batch: int = 2
+    """train batch size for DPR fine-tuning"""
+
+    dpr_eval_batch: int = 2
+    """eval batch size for DPR fine-tuning"""
+
+    dpr_epochs: int = 1
+    """numb of epochs for DPR fine-tuning"""
+
+    dpr_weight_decay: float = 0.01
+    """weight decay for DPR fine-tuning"""
