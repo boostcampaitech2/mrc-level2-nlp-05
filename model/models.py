@@ -80,7 +80,7 @@ class CustomHeadCNN(nn.Module):
             out_channels=config.hidden_size // 3 + 1,  # concat 합칠 때 맞아 떨어지도록
             kernel_size=5, 
             padding=2)
-        self.fc = nn.Linear(config.hidden_size, 2)
+        self.fc = nn.Linear(config.hidden_size, config.num_labels)
 
     def forward(self, x):
         x = x.transpose(1, 2).contiguous()
