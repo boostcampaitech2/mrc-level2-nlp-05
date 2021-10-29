@@ -45,6 +45,7 @@ def get_dense_args():
             per_device_eval_batch_size=retriever_args.dpr_eval_batch,
             num_train_epochs=retriever_args.dpr_epochs,
             weight_decay=retriever_args.dpr_weight_decay,
+            overwrite_output_dir = True
             )
 
     retriever_dir = './models/retriever'
