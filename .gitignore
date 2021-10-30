@@ -134,6 +134,8 @@ dmypy.json
 # PyTorch saved model & data files
 saved/
 data/
+models/
+outputs/
 wandb/
 logs/
 results/
@@ -143,3 +145,6 @@ nohup.out
 
 # vscode
 .vscode
+
+# etc
+ipynb/shkim/
