@@ -117,17 +117,16 @@ def get_model(model_args, training_args):
         model_args.tokenizer if model_args.tokenizer is not None else model_args.model
     )
 
-    # model
-    model = AutoModelForQuestionAnswering.from_pretrained(
-        model_args.model, from_tf=bool(".ckpt" in model_args.model), config=config
-    )
-
-    config.dropout_ratio = model_args.head_dropout_ratio
-    if model_args.head is not None:
-        logger.info("Apply Custom Head")
-        custom_head_module = getattr(import_module('model.models'), model_args.head)
-        custom_head = custom_head_module(config)
-        model.qa_outputs = custom_head
+    if model_args.custom_model is None:
+        model = AutoModelForQuestionAnswering.from_pretrained(
+            model_args.model, from_tf=bool(".ckpt" in model_args.model), config=config
+        )
+    else:
+        config.dropout_ratio = model_args.head_dropout_ratio
+        custom_model_module = getattr(import_module('model.custom_models'), model_args.custom_model)
+        model = custom_model_module(config).from_pretrained(
+            model_args.model, from_tf=bool(".ckpt" in model_args.model), config=config
+        )
 
     # optimizer
     optimizer = AdamW(
@@ -335,10 +334,7 @@ def train_mrc(
                 if eval_loss_obj.get_avg_loss() <= prev_eval_loss:
                     if save_limit_obj is not None:
                         save_limit_obj.update(save_path)    
-
-                    model.save_pretrained(save_path) # save for huggingface model
-                    torch.save(model.state_dict(), os.path.join(save_path, f"{checkpoint_folder}.pt")) # save for custom head
-                    
+                    model.save_pretrained(save_path)
                     prev_eval_loss = eval_loss_obj.get_avg_loss()
                     best_checkpoint = checkpoint_folder
                 else:

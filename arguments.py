@@ -73,14 +73,14 @@ class ModelArguments(BaseArguments):
     tokenizer: str = None
     """pretrained tokenizer name or path if not the same as model_name"""
 
+    custom_model: str = None
+    """custom qa model's class name"""
+
     head: str = None
     """output head"""
 
     head_dropout_ratio: float = 0.1
     """dropout ratio for custom head"""
-
-    saved_checkpoint: str = None
-    """saved checkpoint(.pt) file name"""
 
     loss_fn: Loss = Loss.CE
     """loss function used internally in the model"""

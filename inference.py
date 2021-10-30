@@ -92,21 +92,21 @@ def main():
         else model_args.model,
         use_fast=True,
     )
-    model = AutoModelForQuestionAnswering.from_pretrained(
-        model_args.model,
-        from_tf=bool(".ckpt" in model_args.model),
-        config=config,
-    )
 
-    config.dropout_ratio = model_args.head_dropout_ratio
-    if model_args.head is not None:
-        custom_head_module = getattr(import_module('model.models'), model_args.head)
-        custom_head = custom_head_module(config)
-        model.qa_outputs = custom_head
-        model.load_state_dict(torch.load(os.path.join(model_args.model, model_args.saved_checkpoint)))
-
-    # for name, params in model.qa_outputs.named_parameters():
-    #     print(f"name: {name}\n{params}")
+    if model_args.custom_model is None:
+        model = AutoModelForQuestionAnswering.from_pretrained(
+            model_args.model,
+            from_tf=bool(".ckpt" in model_args.model),
+            config=config,
+        )
+    else:
+        config.dropout_ratio = model_args.head_dropout_ratio
+        custom_model_module = getattr(import_module('model.custom_models'), model_args.custom_model)
+        model = custom_model_module(config).from_pretrained(
+            model_args.model,
+            from_tf=bool(".ckpt" in model_args.model),
+            config=config
+        )
 
     # True일 경우 : run passage retrieval
     # use_eval_retrieval default는? true
