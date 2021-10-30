@@ -300,6 +300,7 @@ def train_mrc(
 ):
     """MRC 모델 학습 및 평가 함수"""
     prev_eval_loss = float('inf')
+    prev_eval_em = 0
     global_steps = 0
     best_checkpoint = ""
     train_loss_obj = LossObject()
@@ -345,6 +346,11 @@ def train_mrc(
                     model.save_pretrained(save_path)
                     prev_eval_loss = eval_loss_obj.get_avg_loss()
                     best_checkpoint = checkpoint_folder
+                elif eval_metric['exact_match'] >= prev_eval_em:
+                    if save_limit_obj is not None:
+                        save_limit_obj.update(save_path)
+                    model.save_pretrained(save_path)
+                    prev_eval_em = eval_metric['exact_match']
                 else:
                     shutil.rmtree(save_path)
 
