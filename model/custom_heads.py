@@ -369,7 +369,6 @@ class CustomHeadCNNAttention(nn.Module):
         self.fc = nn.Linear(config.hidden_size, 2)
 
     def forward(self, x):
-        print('hellooododododoodo')
         x = x.transpose(1, 2).contiguous()
         conv1_out = self.relu(self.conv_1(x).transpose(1, 2).contiguous().squeeze(-1))
         conv3_out = self.relu(self.conv_3(x).transpose(1, 2).contiguous().squeeze(-1))
