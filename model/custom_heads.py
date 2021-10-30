@@ -1,6 +1,10 @@
+import math
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from transformers import AutoTokenizer, AutoModel
+
 
 class CustomHeadBase(nn.Module):
     def __init__(self, config):
@@ -249,3 +253,177 @@ class CustomHeadLSTM_L3_CNN(nn.Module):
         conv5_out = self.relu(self.conv_5(output).transpose(1, 2).contiguous())
         output = self.fc(self.dropout(torch.cat((conv1_out, conv3_out, conv5_out), -1)))
         return output
+
+    
+
+
+class CustomHeadAttention(nn.Module):
+    def __init__(self, config ):
+        super().__init__() 
+        self.config = config
+        self.query_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.key_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.value_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.gelu = nn.GELU()
+        self.classify_layer = nn.Linear(config.hidden_size, 2, bias=True)
+        self.drop_out = nn.Dropout(0.5)
+
+
+    def forward(self, x):
+        sequence_output = x 
+        dim_size = x.shape[2]
+
+        embedded_query = self.query_layer(sequence_output)
+        embedded_key = self.key_layer(sequence_output) 
+        embedded_value = self.value_layer(sequence_output)
+
+        attention_score = torch.matmul(embedded_query, torch.transpose(embedded_key, -2, -1)) / math.sqrt(dim_size)
+        attention_dists = F.softmax(attention_score, dim=-1)
+        logits = torch.matmul(attention_dists, embedded_value) 
+        logits = self.gelu(logits)
+        logits = self.drop_out(logits)
+        logits = self.classify_layer(logits) 
+
+        return logits
+
+
+
+class CustomHeadAttentionCNN(nn.Module):
+    def __init__(self, config ):
+        super().__init__() 
+        self.config = config
+        self.query_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.key_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.value_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.gelu = nn.GELU()
+        self.classify_layer = nn.Linear(config.hidden_size, 2, bias=True)
+        self.drop_out = nn.Dropout(0.5)
+
+
+        self.relu = nn.ReLU()
+        self.conv_1 = nn.Conv1d(
+            in_channels=config.hidden_size, 
+            out_channels=config.hidden_size // 3,
+            kernel_size=1, 
+            padding=0)  # stride: default 1
+        self.conv_3 = nn.Conv1d(
+            in_channels=config.hidden_size, 
+            out_channels=config.hidden_size // 3, 
+            kernel_size=3, 
+            padding=1)
+        self.conv_5 = nn.Conv1d(
+            in_channels=config.hidden_size, 
+            out_channels=config.hidden_size // 3, 
+            kernel_size=5, 
+            padding=2)
+        self.fc = nn.Linear(config.hidden_size, 2)
+
+    def forward(self, x):
+        sequence_output = x
+        dim_size = x.shape[2]
+        embedded_query = self.query_layer(sequence_output) 
+        embedded_key = self.key_layer(sequence_output) 
+        embedded_value = self.value_layer(sequence_output) 
+
+        attention_score = torch.matmul(embedded_query, torch.transpose(embedded_key, -2, -1)) / math.sqrt(dim_size)
+        attention_dists = F.softmax(attention_score, dim=-1)
+        logits = torch.matmul(attention_dists, embedded_value) 
+        logits = self.gelu(logits)
+        logits = self.drop_out(logits)
+        x = logits.transpose(1, 2).contiguous()
+        conv1_out = self.relu(self.conv_1(x).transpose(1, 2).contiguous().squeeze(-1))
+        conv3_out = self.relu(self.conv_3(x).transpose(1, 2).contiguous().squeeze(-1))
+        conv5_out = self.relu(self.conv_5(x).transpose(1, 2).contiguous().squeeze(-1))
+        output = self.fc(torch.cat((conv1_out, conv3_out, conv5_out), -1))
+
+        return output
+
+class CustomHeadCNNAttention(nn.Module):
+    def __init__(self, config ):
+        super().__init__() 
+        self.config = config
+        self.query_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.key_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.value_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.gelu = nn.GELU()
+        self.classify_layer = nn.Linear(config.hidden_size, 2, bias=True)
+        self.drop_out = nn.Dropout(0.5)
+
+
+        self.relu = nn.ReLU()
+        self.conv_1 = nn.Conv1d(
+            in_channels=config.hidden_size, 
+            out_channels=config.hidden_size // 3,
+            kernel_size=1, 
+            padding=0)  # stride: default 1
+        self.conv_3 = nn.Conv1d(
+            in_channels=config.hidden_size, 
+            out_channels=config.hidden_size // 3, 
+            kernel_size=3, 
+            padding=1)
+        self.conv_5 = nn.Conv1d(
+            in_channels=config.hidden_size, 
+            out_channels=config.hidden_size // 3, 
+            kernel_size=5, 
+            padding=2)
+        self.fc = nn.Linear(config.hidden_size, 2)
+
+    def forward(self, x):
+        print('hellooododododoodo')
+        x = x.transpose(1, 2).contiguous()
+        conv1_out = self.relu(self.conv_1(x).transpose(1, 2).contiguous().squeeze(-1))
+        conv3_out = self.relu(self.conv_3(x).transpose(1, 2).contiguous().squeeze(-1))
+        conv5_out = self.relu(self.conv_5(x).transpose(1, 2).contiguous().squeeze(-1))
+        x = torch.cat((conv1_out, conv3_out, conv5_out), -1)
+        sequence_output = x
+        dim_size = x.shape[2]
+        embedded_query = self.query_layer(sequence_output) 
+        embedded_key = self.key_layer(sequence_output) 
+        embedded_value = self.value_layer(sequence_output) 
+
+        attention_score = torch.matmul(embedded_query, torch.transpose(embedded_key, -2, -1)) / math.sqrt(dim_size)
+        attention_dists = F.softmax(attention_score, dim=-1)
+        logits = torch.matmul(attention_dists, embedded_value) 
+        logits = self.gelu(logits)
+        logits = self.drop_out(logits)
+        logits = self.classify_layer(logits) 
+        return logits
+
+class CustomHeadMultiHeadAttention(nn.Module):
+    def __init__(self, config ):
+        super().__init__() 
+        self.config = config
+        self.num_heads = 8
+        self.d_k = config.hidden_size // self.num_heads
+        self.query_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.key_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.value_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.gelu = nn.GELU()
+        self.classify_layer = nn.Linear(config.hidden_size, 2, bias=True)
+        self.drop_out = nn.Dropout(0.5)
+
+    def forward(self, x):
+        sequence_output = x
+        batch_size = x.shape[0]
+
+        embedded_query = self.query_layer(sequence_output)
+        embedded_key = self.key_layer(sequence_output) 
+        embedded_value = self.value_layer(sequence_output) 
+
+        embedded_query = embedded_query.view(batch_size, -1, self.num_heads, self.d_k) 
+        embedded_key = embedded_key.view(batch_size, -1, self.num_heads, self.d_k)  
+        embedded_value = embedded_value.view(batch_size, -1, self.num_heads, self.d_k)  
+
+        embedded_query = embedded_query.transpose(1, 2) 
+        embedded_key = embedded_key.transpose(1, 2)  
+        embedded_value = embedded_value.transpose(1, 2)
+
+        attention_score = torch.matmul(embedded_query, torch.transpose(embedded_key, -2, -1)) / math.sqrt(self.d_k)
+        attention_dists = F.softmax(attention_score, dim=-1) 
+        attention_value = torch.matmul(attention_dists, embedded_value)
+        logits = attention_value.transpose(1, 2).contiguous().view(batch_size, -1, self.config.hidden_size) 
+        logits = self.gelu(logits)
+        logits = self.drop_out(logits)
+        logits = self.classify_layer(logits) 
+
+        return logits

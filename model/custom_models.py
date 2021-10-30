@@ -13,3 +13,23 @@ class CustomRobertaForQuestionAnsweringWithLSTMCNNHead(RobertaForQuestionAnsweri
     def __init__(self, config):
         super(CustomRobertaForQuestionAnsweringWithLSTMCNNHead, self).__init__(config)
         self.qa_outputs = CustomHeadLSTMCNN(config)
+
+class CustomRobertaForQuestionAnsweringWithAttentionHead(RobertaForQuestionAnswering):
+    def __init__(self, config):
+        super(CustomRobertaForQuestionAnsweringWithAttentionHead, self).__init__(config)
+        self.qa_outputs = CustomHeadAttention(config)
+    
+class CustomRobertaForQuestionAnsweringWithAttentionCNNHead(RobertaForQuestionAnswering):
+    def __init__(self, config):
+        super(CustomRobertaForQuestionAnsweringWithAttentionCNNHead, self).__init__(config)
+        self.qa_outputs = CustomHeadAttentionCNN(config)
+
+class CustomRobertaForQuestionAnsweringWithCNNAttentionHead(RobertaForQuestionAnswering):
+    def __init__(self, config):
+        super(CustomRobertaForQuestionAnsweringWithCNNAttentionHead, self).__init__(config)
+        self.qa_outputs = CustomHeadCNNAttention(config)
+
+class CustomRobertaForQuestionAnsweringWithMultiHeadAttentionHead(RobertaForQuestionAnswering):
+    def __init__(self, config):
+        super(CustomRobertaForQuestionAnsweringWithMultiHeadAttentionHead, self).__init__(config)
+        self.qa_outputs = CustomHeadMultiHeadAttention(config)
