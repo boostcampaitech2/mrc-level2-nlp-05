@@ -286,7 +286,30 @@ class CustomHeadAttention(nn.Module):
 
         return logits
 
+class CustomHeadAttention_V2(nn.Module):
+    def __init__(self, config):
+        super(CustomHeadAttention_V2, self).__init__()
 
+        self.query_layer = nn.Linear(config.hidden_size, config.hidden_size)
+        self.key_layer = nn.Linear(config.hidden_size, config.hidden_size)
+        self.value_layer = nn.Linear(config.hidden_size, config.hidden_size)
+        self.dropout = nn.Dropout(p=config.dropout_ratio)
+        self.fc = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, hidden_states):
+        query = self.query_layer(hidden_states)
+        key = self.key_layer(hidden_states)
+        value = self.value_layer(hidden_states)
+
+        d_k = key.shape[-1]
+
+        attn_scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+        attn_dists = F.softmax(attn_scores, dim=-1)
+        attn_values = torch.matmul(attn_dists, value)
+
+        logit = self.fc(self.dropout(attn_values))
+
+        return logit
 
 class CustomHeadAttentionCNN(nn.Module):
     def __init__(self, config ):
