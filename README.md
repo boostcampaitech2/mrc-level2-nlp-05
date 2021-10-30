@@ -2,24 +2,149 @@
 
 ## Boostcamp AI-Tech 2기
 
-## Updates
+# Baseline v2.0 for ODQA
 
-* (1:10, Oct 21) 베이스라인 리팩토링 한 것을 올려놨습니다! 다 수정하지는 않았고, 일단 돌아가게만 해놓은 상태라고 보시면 됩니다. 자세한 내용 및 앞으로 구현해야 되는 사항은 아래와 같습니다.
+## 베이스라인의 구조
 
-  1. 🟢 Preprocessor 분리 - preprocessor.py로 데이터셋 전처리르 옮겨놨습니다. 또한, 중복되는 코드 역시도 refactoring 하였습니다. 추가적인 기능을 원하시는 분은 지난 대회와 마찬가지로 `Preprocessor`를 상속하는 클래스를 만들어주면 됩니다. 이후, `prepare_train_features()`, `prepare_eval_features()` 두 메서드를 구현해주면 됩니다. 저번 대회보다 개선된 사항은 `__init__` 시에 `dataset_args, tokenizer, column_names`를 받도록 설계하여, `set_tokenizer()`, `set_column_names()`를 별도로 실행하지 않아도 되게끔 했습니다.
+베이스라인이 달라진 점은 크게 `QAProcessor`와 `QATrainer`가 추가된 것입니다. 기존의 베이스라인을 다양한 방식으로 변경하는 것을 시도하였으나, 호환성의 문제와 이미 베이스라인에 익숙하신 분들이 많을 것 같아서 최대한 기존 틀을 유지했습니다. 더 단순하고 직관적인 코드가 가능할 수도 있었을 "뻔"했지만 쉽지 않았던 점, 그리고 개선된 베이스라인 제공이 늦어진 점 죄송하게 생각합니다. 그러나 HuggingFace `Trainer`, `Dataset` 등을 이용해 무언가를 구현하고 싶다면 물어보시면 최대한 도움되도록 하겠습니다!
 
-  2. 🟡 Retriever Argument 생성 - 다양한 retriever를 사용할 수 있도록 일단 넣어놨습니다. 기본적인 retriever 구현은 이번주 일요일까지 수행 후 합치는 작업을 진행하겠습니다. (due Oct 24)
+## 용어 정리
 
-  3. 🟢 `increment_path()` 함수 - 잡다한 유틸리티는 `utils.py`에 모아놨습니다. 이름이 겹치는 경우에는 자동으로 이름에 suffix를 붙여줍니다.
+아래 내용은 HuggingFace에서 사용하고 있는 용어를 정리한 것이며, 제 코드 역시도 아래의 명명을 따릅니다. 애매모호함을 개선하기 위하고, 동일한 수준의 이해를 위해 사실상 필수적이라고 할 수 있습니다. 해당 부분이 명확하지 않아서, 1주일은 어려움을 겪었습니다.
 
-  4. 🔴 custom model 구현 - argparser를 이용하여 huggingface 모델과 custom model을 동일한 인터페이스로 불러오는 작업을 수행해야 합니다. 아마 `get_model_and_tokenizer()` 형태로 똑같이 구현할 것 같습니다. (due Oct 22)
+* examples: 토큰화되기 전의 raw text 데이터를 의미합니다. 
 
-  5. 🔴 `post_processing_function`을 post_processing_class로 변경 - 현재는 함수로 구현되어 있지만, 이를 class로 구현해서 `__call__()` 메서드를 통해서 후처리를 수행해야 할 것으로 보입니다. 해당 부분이 지저분해져서 datasets를 넘기도록 코드가 구성되어 있기 때문에, 현재 `QuestionAnsweringTrainer` 클래스 구현까지도 수정된 상태입니다. (datasets, dataset_args 등의 인자를 임시로 추가하여 동작은 하도록 만들었습니다...) Preprocessor와 마찬가지로 사전에 설정해두어야 할 듯 하고, 나중에 ensemble이나 generation task로 문제를 해결할 경우 이에 적합한 post_processor를 만드는 것도 중요한 태스크일 것입니다. (due Oct 22)
+    * 따라서 아직 context와 question을 `str` 형태로 데이터를 갖고 있으며, 토큰화를 진행해야 합니다.
 
-  6. 🔴 inference.py 제작 - train.py와 매우 유사하기 때문에 재사용이 가능한 함수들은 refactoring하여 inference.py를 간소화해서 제작하는 것이 필요해 보입니다. (due Oct 24)
+    * 모델에 직접 투입될 수 없습니다.
 
-  7. 🔴 argparser 구현 - model, config, tokenizer, preprocessor, retriever 부분에 해당하는 argument parser 구현 및 연동을 작성해야 합니다. (due Oct 21)
+* features: tokenizer를 거쳐 토큰화된 후의 데이터를 의미합니다. 
 
-  8. 🟡 custom classification head 구현 - custom model의 경우 다양한 백본 모델의 config를 토대로 자동으로 custom classification head를 붙여주는 코드를 제작할 예정입니다. 4번 항목과 연관된 내용입니다. (due Oct 22) 
+    * Python list, numpy ndarray, PyTorch tensor 등의 형태를 가질 수 있습니다. 
+    
+    * 자료 형태는 사실 크게 문제가 없는 이유가, `Trainer`에서 model의 input으로 넣을 때 자동으로 `collate` 함수를 적용하고 PyTorch tensor로 변환시킵니다. 
+    
+    * 다만, 이번 베이스라인 코드에서는 dataset과 혼용되어 사용됩니다. 그 이유는 model에 투입되는 사실상의 입력값이기 때문입니다.
 
-  9. 🟢 pretrained weight를 freeze 시키기 위해서는 --freeze_pretrained_weight라는 인자를 사용하면 됩니다. 인자는 'none', 'all', 'first', 'last' 4개의 옵션이 있으며, 자세한 내용은 arguments.py에 작성되어 있습니다. 추가로 first, last 옵션을 사용할때는 freeze_pretrained_weight_epoch 옵션을 같이 사용할 수 있습니다. (finished Oct 26)
+* dataset: HuggingFace `Dataset` 클래스의 오브젝트 인스턴스를 의미합니다. 
+
+    * pandas와 유사하게 메모리 공간상 연속된 배열의 형태로 자리하고 있어 효율적이고 빠릅니다.
+
+    * 기본적으로 tabular 형태의 자료이기 때문에 모든 열의 길이가 동일해야 합니다.
+
+    * dataset의 메서드들을 확인해보시면 pandas, json 등으로 손쉽게 변환할 수 있고, 혹은 그로부터 불러올 수도 있습니다.
+
+* datasets: HuggingFace `DatasetDict` 클래스의 오브젝트 인스턴스를 의미합니다. Python의 `Dict[str, Dataset]`과 유사한 구조를 가집니다. 즉, key 값을 통해 dataset을 접근 가능합니다.
+
+* gold_answer: 참값을 의미합니다. HuggingFace에서는 이렇게 부르더라고요.
+
+* 단수/복수: example은 examples의 특정 하나의 행을 의미하고, 마찬가지로 feature는 features의 특정 하나의 행을 의미합니다. 이는 나중에 augmentation 구현에 중요하니 알아두셔야 합니다.
+
+# `QAProcessor`
+
+데이터 불러오는 함수부터 후처리까지 합쳐져 있는 형태입니다. 기존 베이스라인의 `Preprocessor`와 `postprocessor`가 합쳐진 형태입니다. 사실상 추가적으로 건드릴 필요가 없고, 추가적인 데이터 처리 기능만을 구현해주시면 됩니다. 
+
+## 동작 순서
+
+```python
+# 1. DatasetArguments & Tokenizer
+dataset_args = DatasetArguments(...) # 사실상 argparse가 수행합니다.
+model = AutoModelForQuestionAnswering.from_pretrained(MODEL_NAME)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME) # 토크나이저는 당연히 tokenize 시에 필요합니다.
+
+# 2. Initialization
+qa_processor = QAProcessor(dataset_args, tokenizer, concat=False)
+# concat=True로 설정하면 train과 eval dataset을 합쳐 훈련시킵니다.
+# 최종 모델 제출에 써먹을 수 있을 것 같습니다.
+
+# 3. Get examples
+train_examples = qa_processor.get_train_examples()
+eval_examples  = qa_processor.get_eval_examples()
+
+# 4. Get features
+train_features = qa_processor.get_train_features()
+eval_features  = qa_processor.get_eval_features()
+
+# 5. TrainingArguments & Trainer
+training_args = TrainingArguments(...)
+# please set do_train=True and do_eval=True
+trainer = QATrainer(
+    model=model,
+    args=training_args,
+    train_dataset=train_features,
+    eval_dataset=eval_features,
+    eval_examples=eval_examples,
+    post_process_function=qa_processor.post_processing_function,
+    compute_metrics=compute_metrics,
+)
+
+# 6. Train!
+trainer.train()
+```
+
+저게 끝입니다 여러분!!! 그러나 더 간단해지는 방법은...
+
+```python
+from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer, TrainingArguments
+
+from datasets import load_metric
+
+from arguments import DatasetArguments
+from trainer_qa import QATrainer
+from processor import QAProcessor
+
+dataset_args = DatasetArguments(...) 
+training_args = TrainingArguments(...)
+
+config = AutoConfig.from_pretrained(MODEL_NAME)
+model = AutoModelForQuestionAnswering.from_pretrained(MODEL_NAME)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME) 
+
+qa_processor = QAProcessor(dataset_args, tokenizer, concat=False)
+
+metric = load_metric("squad")
+
+def compute_metrics(pred: EvalPrediction):
+    return metric.compute(predictions=pred.predictions, references=pred.label_ids)
+
+training_args = TrainingArguments(...)
+trainer = QATrainer(
+    model=model,
+    args=training_args,
+    train_dataset=qa_processor.get_train_features(),
+    eval_dataset=qa_processor.get_eval_features(),
+    eval_examples=qa_processor.get_eval_examples(),
+    post_process_function=qa_processor.post_processing_function,
+    compute_metrics=compute_metrics,
+)
+```
+
+## `QAProcessor.__init__(dataset_args, tokenizer, concat)`
+
+* `dataset_args.data_dir`의 `datasets`를 불러와 train, eval, test `dataset`을 만듭니다. 즉, `inference.py`에서도 활용이 가능합니다.
+
+* `tokenizer` 등을 클래스 내 인스턴스 변수로 할당하여, 전처리 및 후처리에 활용가능하도록 합니다.
+
+* `concat=True`로 설정하면 train과 eval을 합쳐 train dataset을 만듭니다.
+
+## `QAProcessor.get_train_examples()`
+
+* `Dataset` 클래스의 train examples를 반환합니다.
+
+* 마찬가지로 `get_eval_examples()`, `get_test_examples()`도 동일합니다.
+
+## `QAProcessor.get_train_features()`
+
+* `Dataset` 클래스의 train features를 반환합니다.
+
+* 기존에 loss가 계산되지 않은 이유는 QA의 label에 해당하는 `start_positions`과 `end_positions`를 반환하지 않았기 때문입니다. 이를 반환하도록 개선하였습니다.
+
+# 앞으로의 TODO
+
+* `inference.py` 수정
+
+* `RandomFlip` 구현: 한국어는 어순에 관계없이 문장의 의미가 크게 달라지지 않을 것이라는 가정
+
+* `MultipleAnswers` 구현: gold_answer에 해당하는 모든 span을 찾아 `answers`에 추가하는 것입니다. 일단 답만 맞으면 되기 때문에, 얼마나 성능을 늘릴 지는 고민해볼 법합니다.
+
+
