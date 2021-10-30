@@ -301,12 +301,13 @@ def train_mrc(
     """MRC 모델 학습 및 평가 함수"""
     prev_eval_loss = float('inf')
     prev_eval_em = 0
-    global_steps = 0
     best_checkpoint = ""
     train_loss_obj = LossObject()
     eval_loss_obj = LossObject()
     max_epoch = int(training_args.num_train_epochs)
     save_limit_obj = SaveLimitObject(training_args.save_total_limit) if training_args.save_total_limit is not None else None
+    global_steps = 0
+    max_steps = max_epoch * len(train_dataloader)
     for epoch in range(max_epoch):
         pbar = tqdm(
             enumerate(train_dataloader),
@@ -327,7 +328,7 @@ def train_mrc(
 
             lr = scheduler.get_last_lr()[0]
 
-            if global_steps % training_args.eval_steps == 0:
+            if global_steps % training_args.eval_steps == 0 or global_steps == max_steps:
                 checkpoint_folder = f"checkpoint-{global_steps:05d}"
 
                 with torch.no_grad():
