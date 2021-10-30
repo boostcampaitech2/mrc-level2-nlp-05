@@ -16,84 +16,100 @@
 Question-Answering task와 관련된 'Trainer'의 subclass 코드 입니다.
 """
 
-from transformers import Trainer, is_datasets_available, is_torch_tpu_available
-from transformers.trainer_utils import PredictionOutput
+import time
+import math
+from typing import Callable, List
 
+import datasets
+from datasets import Dataset
 
-if is_datasets_available():
-    import datasets
-
-if is_torch_tpu_available():
-    import torch_xla.core.xla_model as xm
-    import torch_xla.debug.metrics as met
+from transformers.trainer import Trainer
+from transformers.trainer_utils import speed_metrics
 
 # Huggingface의 Trainer를 상속받아 QuestionAnswering을 위한 Trainer를 생성합니다.
-class QuestionAnsweringTrainer(Trainer):
-    def __init__(self, *args, dataset_args=None, datasets=None, eval_examples=None, post_process_function=None, **kwargs):
+class QATrainer(Trainer):
+    def __init__(
+        self, 
+        *args, 
+        eval_examples: Dataset=None, 
+        post_process_function: Callable=None, 
+        **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.eval_examples = eval_examples
         self.post_process_function = post_process_function
-        self.dataset_args = dataset_args
-        self.datasets = datasets
 
-    def evaluate(self, eval_dataset=None, eval_examples=None, ignore_keys=None):
-        eval_dataset = self.eval_dataset if eval_dataset is None else eval_dataset
-        eval_dataloader = self.get_eval_dataloader(eval_dataset)
+    def evaluate(
+        self, 
+        eval_dataset: Dataset=None, 
+        eval_examples: Dataset=None, 
+        ignore_keys: List[str]=None,
+    ):
+        self._memory_tracker.start()
+
+        eval_dataset  = self.eval_dataset  if eval_dataset is None  else eval_dataset
         eval_examples = self.eval_examples if eval_examples is None else eval_examples
 
-        # 일시적으로 metric computation를 불가능하게 한 상태이며, 해당 코드에서는 loop 내에서 metric 계산을 수행합니다.
-        compute_metrics = self.compute_metrics
+        eval_dataloader = self.get_eval_dataloader(eval_dataset)
+        start_time = time.time()
+
+        temp_compute_metrics = self.compute_metrics
         self.compute_metrics = None
+
         try:
-            output = self.prediction_loop(
+            output = self.evaluation_loop(
                 eval_dataloader,
                 description="Evaluation",
-                # metric이 없으면 예측값을 모으는 이유가 없으므로 아래의 코드를 따르게 됩니다.
-                # self.args.prediction_loss_only
-                prediction_loss_only=True if compute_metrics is None else None,
+                prediction_loss_only=True if temp_compute_metrics is None else None,
                 ignore_keys=ignore_keys,
+                metric_key_prefix="eval"
             )
         finally:
-            self.compute_metrics = compute_metrics
-
+            self.compute_metrics = temp_compute_metrics
+        
         if isinstance(eval_dataset, datasets.Dataset):
             eval_dataset.set_format(
                 type=eval_dataset.format["type"],
-                columns=list(eval_dataset.features.keys()),
+                columns=list(eval_dataset.features.keys())
             )
 
         if self.post_process_function is not None and self.compute_metrics is not None:
             eval_preds = self.post_process_function(
-                eval_examples, eval_dataset, self.datasets, output.predictions, self.args, self.dataset_args
+                examples=eval_examples, 
+                features=eval_dataset, 
+                predictions=output.predictions, 
+                training_args=self.args, 
             )
-            metrics = self.compute_metrics(eval_preds)
-
-            self.log(metrics)
-        else:
-            metrics = {}
-
-        if self.args.tpu_metrics_debug or self.args.debug:
-            # tpu-comment: PyTorch/XLA에 대한 Logging debug metrics (compile, execute times, ops, etc.)
-            xm.master_print(met.metrics_report())
+            
+            output.metrics.update({"eval_" + k: v for k, v in self.compute_metrics(eval_preds).items()})
+        
+        total_batch_size = self.args.eval_batch_size * self.args.world_size
 
         self.control = self.callback_handler.on_evaluate(
-            self.args, self.state, self.control, metrics
+            self.args, self.state, self.control, output.metrics
         )
-        return metrics
+
+        self.log(output.metrics)
+        self.log(
+            speed_metrics(
+                "eval",
+                start_time,
+                num_samples=output.num_samples,
+                num_steps=math.ceil(output.num_samples / total_batch_size),
+            )
+        )
+
+        return output.metrics
 
     def predict(self, test_dataset, test_examples, ignore_keys=None):
         test_dataloader = self.get_test_dataloader(test_dataset)
 
-        # 일시적으로 metric computation를 불가능하게 한 상태이며, 해당 코드에서는 loop 내에서 metric 계산을 수행합니다.
-        # evaluate 함수와 동일하게 구성되어있습니다
         compute_metrics = self.compute_metrics
         self.compute_metrics = None
         try:
             output = self.prediction_loop(
                 test_dataloader,
                 description="Evaluation",
-                # metric이 없으면 예측값을 모으는 이유가 없으므로 아래의 코드를 따르게 됩니다.
-                # self.args.prediction_loss_only
                 prediction_loss_only=True if compute_metrics is None else None,
                 ignore_keys=ignore_keys,
             )

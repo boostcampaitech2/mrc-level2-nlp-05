@@ -34,7 +34,7 @@ class BaseArguments(Serializable):
 class DatasetArguments(BaseArguments):
     """Dataset/DataLoader Arguments"""
 
-    dataset_path: str = "/opt/ml/data/train_dataset/"
+    dataset_path: str = "/opt/ml/data"
     """path for the dataset"""
 
     max_seq_len: int = 384
@@ -127,8 +127,8 @@ class DefaultArguments(BaseArguments):
     description: str = ""
     """brief description of the experiment"""
 
-    log_level: str = "INFO"
-    """logging level"""
+    # log_level: str = "INFO"
+    # """logging level"""
 
     wandb_entity: str = "this-is-real"
     """wandb entity name"""
