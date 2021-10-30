@@ -217,17 +217,25 @@ def need_weight_freeze(model_args, epoch, max_epoch):
     return freeze
 
 
-def control_pretained_weight(model, freeze=False): 
+def control_pretained_weight(model, model_args, freeze=False): 
     """pretrained weight freeze options - none, all, first, last"""
     
-    requires_grad = not freeze
     for name, param in model.named_parameters():
         if 'qa_outputs' not in name:
-            param.requires_grad = requires_grad
+            param.requires_grad = not freeze
+        if 'embeddings' in name :
+            param.requires_grad = not model_args.freeze_embedding_layer_weight
+
     if freeze :
         logger.info("Current epoch's freeze status: freeze")
     else :
         logger.info("Current epoch's freeze status: unfreeze")
+    
+    if model_args.freeze_embedding_layer_weight :
+        logger.info("Current epoch's embedding layer status: freeze")
+    else :
+        logger.info("Current epoch's embedding layer status: unfreeze")
+
     return model
 
 
@@ -305,7 +313,7 @@ def train_mrc(
             position=0,
             leave=True
         )
-        control_pretained_weight(model,freeze=need_weight_freeze(model_args, epoch+1, max_epoch))
+        control_pretained_weight(model, model_args, freeze=need_weight_freeze(model_args, epoch+1, max_epoch))
 
         for step, batch in pbar:
             loss = train_step(model, optimizer, scheduler, batch, device)
