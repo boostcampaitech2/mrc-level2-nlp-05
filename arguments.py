@@ -59,6 +59,8 @@ class DatasetArguments(BaseArguments):
     overwrite_cache: bool = True
     """overwrite cache file if True"""
 
+    concat_eval: bool = False
+    """Whether concat to train set and eval set"""
 
 @dataclass
 class ModelArguments(BaseArguments):
@@ -127,8 +129,8 @@ class DefaultArguments(BaseArguments):
     description: str = ""
     """brief description of the experiment"""
 
-    # log_level: str = "INFO"
-    # """logging level"""
+    log_level: str = "INFO"
+    """logging level"""
 
     wandb_entity: str = "this-is-real"
     """wandb entity name"""
