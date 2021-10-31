@@ -20,13 +20,126 @@ import time
 import math
 from typing import Callable, List
 
+import torch
+import torch.nn as nn
+
 import datasets
 from datasets import Dataset
 
+from transformers import TrainingArguments, TrainerState, TrainerControl
 from transformers.trainer import Trainer
 from transformers.trainer_utils import speed_metrics
+from transformers.trainer_callback import TrainerCallback
 
-# Huggingface의 Trainer를 상속받아 QuestionAnswering을 위한 Trainer를 생성합니다.
+
+class FreezeEmbeddingCallback(TrainerCallback):
+    """Callback for freezing Embedding"""
+    def __init__(
+        self,
+        model: nn.Module,
+        freeze_epochs: float = 1.0
+    ) -> None:
+        super().__init__()
+        self.model = model
+        self.freeze_epochs = float(freeze_epochs)
+
+        print("Freeze Embedding Layers Initially")
+        self.freeze_embedding_layers()
+
+    def print_frozen_layers(self):
+        # printing the names of the frozen layers
+        frozen_layer_names = [name for name, param in self.model.named_parameters() if not param.requires_grad]
+        if len(frozen_layer_names) > 0:
+            if len(frozen_layer_names) > 5:
+                print("Frozen layers:", frozen_layer_names[:4], "..." ,frozen_layer_names[-1])
+            else:
+                print("Frozen layers:", frozen_layer_names)
+        else:
+            print("No frozen layers")
+
+    def freeze_embedding_layers(self, layer_name: str = "embeddings"):
+        for name, param in self.model.named_parameters():
+            if name.count(layer_name) == 0:
+                # do not freeze -> requires_grad == True
+                param.requires_grad = True
+            else:
+                # freeze -> requires_grad == False
+                param.requires_grad = False
+            
+        self.print_frozen_layers()
+
+    def unfreeze_all_layers(self):
+        for name, param in self.model.named_parameters():
+            param.requires_grad = True
+        self.print_frozen_layers()
+
+    def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+
+        current_epoch = state.epoch
+        print(current_epoch, self.freeze_epochs)
+
+        if current_epoch < self.freeze_epochs:
+            pass
+            
+        else:
+            self.unfreeze_all_layers()
+
+
+class FreezeBackboneCallback(TrainerCallback):
+    """Callback for freezing Embedding"""
+    def __init__(
+        self,
+        model: nn.Module,
+        backbone_name: str,
+        freeze_epochs: float = 1.0
+    ) -> None:
+        super().__init__()
+        self.model = model
+        self.backbone_name = backbone_name
+        self.freeze_epochs = float(freeze_epochs)
+
+        print("Freeze Backbone Layers Initially")
+        self.freeze_backbone_layers()
+
+    def print_frozen_layers(self):
+        # printing the names of the frozen layers
+        frozen_layer_names = [name for name, param in self.model.named_parameters() if not param.requires_grad]
+        if len(frozen_layer_names) > 0:
+            if len(frozen_layer_names) > 5:
+                print("Frozen layers:", frozen_layer_names[:4], "..." ,frozen_layer_names[-1])
+            else:
+                print("Frozen layers:", frozen_layer_names)
+        else:
+            print("No frozen layers")
+
+    def freeze_backbone_layers(self):
+        for name, param in self.model.named_parameters():
+            if name.count(self.backbone_name) == 0:
+                # do not freeze -> requires_grad == True
+                param.requires_grad = True
+            else:
+                # freeze -> requires_grad == False
+                param.requires_grad = False
+            
+        self.print_frozen_layers()
+
+    def unfreeze_all_layers(self):
+        for name, param in self.model.named_parameters():
+            param.requires_grad = True
+        self.print_frozen_layers()
+
+    def on_evaluate(self, args: TrainingArguments, state: TrainerState, control: TrainerControl, **kwargs):
+
+        current_epoch = state.epoch
+        print(current_epoch, self.freeze_epochs)
+
+        if current_epoch < self.freeze_epochs:
+            pass
+            
+        else:
+            self.unfreeze_all_layers()
+
+
 class QATrainer(Trainer):
     def __init__(
         self, 
