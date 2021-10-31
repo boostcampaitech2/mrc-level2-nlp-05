@@ -4,6 +4,19 @@
 
 # Baseline v2.0 for ODQA
 
+## Updates
+(02:57 AM, Nov 1, 2021)
+
+* 훈련은 `train_mrc_v2.py` 파일을 통해 가능합니다. `train_mrc_trainer.py` 파일은 deprecate 되어 월요일 오후 중 삭제될 예정입니다.
+
+* HugggingFace에서도 logger를 제공하는데, 이게 기존 Python logger와 충돌하는 것으로 보입니다. 이를 HuggingFace의 logger만을 사용하도록 수정했습니다. 
+
+* Freeze, Unfreeze 기능이 구현되어 있습니다. 자세한 내용은 `trainer_qa.py` 파일에서 `FreezeEmbeddingCallback` 클래스와 `FreezeBackboneCallback` 클래스를 참고하면 됩니다. 
+
+* `train_mrc_v2.py`에는 callback으로 `FreezeEmbeddingCallback`이 불러와져 있습니다. 이를 `FreezeBackboneCallback`으로 바꾸고, `backbone_name` 인자에 `"roberta"`를 넣어주면 정해진 `freeze_epochs` 동안 backbone 모델 전체를 freeze합니다. 이를 argparser로 받는 부분은 당장 중요하진 않아서, 추후 구현할 예정입니다.
+
+* wandb를 위해 os의 environment variable을 바꾸는 게 아니라, `wandb.init()`을 통해 해결하도록 변경했습니다. 
+
 ## 베이스라인의 구조
 
 베이스라인이 달라진 점은 크게 `QAProcessor`와 `QATrainer`가 추가된 것입니다. 기존의 베이스라인을 다양한 방식으로 변경하는 것을 시도하였으나, 호환성의 문제와 이미 베이스라인에 익숙하신 분들이 많을 것 같아서 최대한 기존 틀을 유지했습니다. 더 단순하고 직관적인 코드가 가능할 수도 있었을 "뻔"했지만 쉽지 않았던 점, 그리고 개선된 베이스라인 제공이 늦어진 점 죄송하게 생각합니다. 그러나 HuggingFace `Trainer`, `Dataset` 등을 이용해 무언가를 구현하고 싶다면 물어보시면 최대한 도움되도록 하겠습니다!
