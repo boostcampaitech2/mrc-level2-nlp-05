@@ -34,7 +34,7 @@ class BaseArguments(Serializable):
 class DatasetArguments(BaseArguments):
     """Dataset/DataLoader Arguments"""
 
-    dataset_path: str = "/opt/ml/data/train_dataset/"
+    dataset_path: str = "/opt/ml/data"
     """path for the dataset"""
 
     max_seq_len: int = 384
@@ -46,19 +46,25 @@ class DatasetArguments(BaseArguments):
     max_ans_len: int = 30
     """maximum length of an answer that can be generated"""
 
+    # not implemented
     use_max_padding: bool = False
     """Whether to pad all samples to `max_seq_length`. 
     Run slow if set to False on TPUs"""
 
+    # not implemented
     use_bucketing: bool = False
     """Whether to use bucketing"""
 
+    # not implemented
     num_workers: int = 1
     """num workers for preprocessing"""
 
+    # not implemented
     overwrite_cache: bool = True
     """overwrite cache file if True"""
 
+    concat_eval: bool = False
+    """Whether concat to train set and eval set"""
 
 @dataclass
 class ModelArguments(BaseArguments):
@@ -67,23 +73,35 @@ class ModelArguments(BaseArguments):
     model: str = "klue/bert-base"
     """path to pretrained model or model identifier from huggingface.co/models"""
 
-    config: str = None
+    config: Optional[str] = None
     """pretrained config name or path if not the same as model_name"""
 
-    tokenizer: str = None
+    tokenizer: Optional[str] = None
     """pretrained tokenizer name or path if not the same as model_name"""
 
-    custom_model: str = None
+    custom_model: Optional[str] = None
     """custom qa model's class name"""
 
-    head: str = None
+    # not implemented
+    head: Optional[str] = None
     """output head"""
 
+    # not fully implemented (needs to be aligned with model's config)
     head_dropout_ratio: float = 0.1
     """dropout ratio for custom head"""
 
+    # not implemented
     loss_fn: Loss = Loss.CE
     """loss function used internally in the model"""
+
+    freeze_type: Optional[str] = None
+    """Freeze embeddings or roberta (entire backbone) if provided"""
+
+    freeze_epoch: Optional[float] = 1.0
+    """freeze pretrained weight epoch"""
+
+    freeze_embedding_layer_weight: bool = False
+    """freeze embedding layer's weight"""
 
     freeze_pretrained_weight: str = "none"
     """
@@ -95,10 +113,7 @@ class ModelArguments(BaseArguments):
     """
 
     freeze_pretrained_weight_epoch: int = 1
-    """freeze pretrained weight epoch"""
-
-    freeze_embedding_layer_weight: bool = False
-    """freeze embedding layer's weight"""
+    """freeze pretrained weight epoch"""    
 
     warmup_cycles: int = 1
     """the number of hard restarts to use in cosine warmup"""
@@ -129,9 +144,6 @@ class DefaultArguments(BaseArguments):
 
     description: str = ""
     """brief description of the experiment"""
-
-    log_level: str = "INFO"
-    """logging level"""
 
     wandb_entity: str = "this-is-real"
     """wandb entity name"""
