@@ -135,6 +135,8 @@ dmypy.json
 saved/
 models/*
 data/
+models/
+outputs/
 wandb/
 logs/
 results/
@@ -148,6 +150,5 @@ outputs/
 .vscode
 
 # etc
-ipynb/shkim/
-
 .java/
+ipynb/shkim/
