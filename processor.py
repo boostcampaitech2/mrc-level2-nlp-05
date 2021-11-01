@@ -793,11 +793,11 @@ class QAProcessor(DataProcessor):
 
     def masking_input_ids(self, examples):
         
-        cls_token = 0
-        sep_token = 2
-        mask_token = 4
-        ratio = 0.3
-        MAX_MASK_NUM = 2
+        CLS_TOKEN = 0
+        SEP_TOKEN = 2
+        MASK_TOKEN = 4
+        MASK_RATIO = self.dataset_args.token_masking_ratio
+        MAX_MASK_NUM = self.dataset_args.token_masking_max
 
         new_input_ids = []
         past_question = []
@@ -806,9 +806,9 @@ class QAProcessor(DataProcessor):
             
             question = []
             for input_id in question_include_context_ids:
-                if input_id == cls_token :
+                if input_id == CLS_TOKEN :
                     continue
-                if input_id == sep_token :
+                if input_id == SEP_TOKEN :
                     break
                 question.append(input_id)
             
@@ -817,16 +817,16 @@ class QAProcessor(DataProcessor):
             past_question = question
 
             if new_sentence:
-                mask = np.random.rand(len(question)) < ratio
+                mask = np.random.rand(len(question)) < MASK_RATIO
                 if sum(mask) > MAX_MASK_NUM:
                     mask_idx = np.where(mask)
                     set_false_pos = np.random.choice(mask_idx[0], sum(mask) - MAX_MASK_NUM, replace=False)
                     mask[set_false_pos] = False
-                masked_question = [mask_token if m else word for word, m in zip(question, mask)]
+                masked_question = [MASK_TOKEN if m else word for word, m in zip(question, mask)]
             else :
                 masked_question = past_masked_question
             
-            question_masked_ids = [cls_token] + masked_question + [sep_token] + question_include_context_ids[len(question)+2:]
+            question_masked_ids = [CLS_TOKEN] + masked_question + [SEP_TOKEN] + question_include_context_ids[len(question)+2:]
             past_masked_question = masked_question
             new_input_ids.append(question_masked_ids)
 

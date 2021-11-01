@@ -66,6 +66,12 @@ class DatasetArguments(BaseArguments):
     concat_eval: bool = False
     """Whether concat to train set and eval set"""
 
+    token_masking_ratio: float = 0.0
+    """<MASK> tokens per total tokens ratio """
+
+    token_masking_max: int = 2
+    """Maximum number of <MASK> token"""
+
 @dataclass
 class ModelArguments(BaseArguments):
     """Model Arguements"""

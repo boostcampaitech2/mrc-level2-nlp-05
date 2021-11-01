@@ -41,19 +41,19 @@
   #   --freeze_pretrained_weight first \
   #   --freeze_pretrained_weight_epoch 2
 
-  python train_mrc_masking.py \
-    --run_name exp008_custom_masking_head_attention \
-    --description "custom masking head attention , freeze first 2" \
-    --output_dir ./models \
-    --model klue/roberta-base \
-    --num_train_epochs 5 \
-    --use_max_padding \
-    --do_eval \
-    --warmup_steps 500 \
-    --eval_steps 100 \
-    --wandb_project mrc-masking-test \
-    --freeze_pretrained_weight first \
-    --freeze_pretrained_weight_epoch 2
+  # python train_mrc_masking.py \
+  #   --run_name exp008_custom_masking_head_attention \
+  #   --description "custom masking head attention , freeze first 2" \
+  #   --output_dir ./models \
+  #   --model klue/roberta-base \
+  #   --num_train_epochs 5 \
+  #   --use_max_padding \
+  #   --do_eval \
+  #   --warmup_steps 500 \
+  #   --eval_steps 100 \
+  #   --wandb_project mrc-masking-test \
+  #   --freeze_pretrained_weight first \
+  #   --freeze_pretrained_weight_epoch 2
 
   # python train_mrc.py \
   #   --run_name exp008_custom_head_attention_cnn \
@@ -99,3 +99,17 @@
   #   --freeze_pretrained_weight first \
   #   --freeze_pretrained_weight_epoch 2 \
   #   --custom_model CustomRobertaForQuestionAnsweringWithMultiHeadAttentionHead
+
+  python train_mrc_v2.py \
+      --do_train --do_eval \
+      --output_dir ./models --logging_dir ./logs --seed 42 \
+      --model klue/roberta-large \
+      --num_train_epochs 5 --learning_rate 3.4e-5 --weight_decay 0.015 \
+      --max_seq_len 512 --max_ans_len 30 \
+      --evaluation_strategy steps --eval_steps 100 --logging_steps 100 --save_steps 100 \
+      --save_total_limit 5 \
+      --freeze_type roberta --freeze_epoch 2.0 \
+      --label_smoothing_factor 0.02 \
+      --run_name context_mask_baseline \
+      --wandb_project mrc-context-mask --wandb_entity this-is-real \
+      --token_masking_ratio 0.3
