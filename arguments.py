@@ -123,7 +123,7 @@ class ModelArguments(BaseArguments):
 class RetrieverArguments(BaseArguments):
     """Retriever Arguments"""
 
-    retriver: str = "tf-idf"
+    retriever: str = "tf-idf"
     """name of retriever"""
 
     top_k_retrieval: int = 1
