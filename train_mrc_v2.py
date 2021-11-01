@@ -41,6 +41,8 @@ def set_seed_all(seed):
 
 
 def get_model(model_args: ModelArguments, config=None):
+    """Gets a custom model if `model_args.custom_model` is provided.
+    Otherwise, returns the HuggingFace's implmenetation of the downstream model."""
     if model_args.custom_model is not None:
         print("Loading custom model class")
         custom_model_module = getattr(import_module("model.custom_models"), model_args.custom_model)
@@ -102,11 +104,12 @@ def main():
     train_features = qa_processor.get_train_features()
     eval_features  = qa_processor.get_eval_features()
 
+    # Define metric for squad dataset
     metric = load_metric("squad")
-
     def compute_metrics(pred: EvalPrediction):
         return metric.compute(predictions=pred.predictions, references=pred.label_ids)
 
+    # Initialize wandb
     wandb.init(
         project=default_args.wandb_project, 
         entity=default_args.wandb_entity, 
@@ -115,8 +118,11 @@ def main():
     )
 
     # Initialize callbacks
-    freeze_callback = FreezeEmbeddingCallback(model, freeze_epochs=1.0)
+    # Comment at least one of the lines below out if you don't need to freeze the embedding layer
+    # freeze_callback = FreezeEmbeddingCallback(model, freeze_epochs=1.0)
+    freeze_callback = FreezeBackboneCallback(model, "roberta", freeze_epochs=1.0)
 
+    # Build a custom trainer
     trainer = QATrainer(
         model=model,
         args=training_args,
@@ -128,8 +134,10 @@ def main():
         compute_metrics=compute_metrics,
     )
 
+    # Comment this out if you don't need to freeze the layers
     trainer.add_callback(freeze_callback)
 
+    # Train!
     trainer.train()
 
 if __name__ == "__main__":
