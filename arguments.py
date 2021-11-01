@@ -73,23 +73,24 @@ class ModelArguments(BaseArguments):
     model: str = "klue/bert-base"
     """path to pretrained model or model identifier from huggingface.co/models"""
 
-    config: str = None
+    config: Optional[str] = None
     """pretrained config name or path if not the same as model_name"""
 
-    tokenizer: str = None
+    tokenizer: Optional[str] = None
     """pretrained tokenizer name or path if not the same as model_name"""
 
-    custom_model: str = None
+    custom_model: Optional[str] = None
     """custom qa model's class name"""
 
     # not implemented
-    head: str = None
+    head: Optional[str] = None
     """output head"""
 
     # not fully implemented (needs to be aligned with model's config)
     head_dropout_ratio: float = 0.1
     """dropout ratio for custom head"""
 
+    # not implemented
     loss_fn: Loss = Loss.CE
     """loss function used internally in the model"""
 
