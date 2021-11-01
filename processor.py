@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import logging
 
 from collections import defaultdict, OrderedDict
@@ -199,6 +200,32 @@ class QAProcessor(DataProcessor):
     def split_into_chunks(self, examples, chunk_len: Optional[int] = None, stride: Optional[int] = None):
         pass 
 
+
+    def _random_flip_question(self, example):
+        words = example['question'].split()
+        words[-1] = words[-1][:-1] + "," # removing question mark
+        num_words = len(words)
+        
+        if num_words < 5:
+            return example
+        
+        flip_idx = random.randint(int(0.2 * num_words), int(0.8 * num_words))
+        words[flip_idx-1] = words[flip_idx-1] + "?" # adding question mark
+        words = words[flip_idx:] + words[:flip_idx]
+        return {'question': " ".join(words)}
+
+
+    def flip_questions(self, dataset: Dataset = None, repeats: int = 1, concat: bool = True):
+        if dataset is None:
+            dataset = self.train_dataset
+
+        new_dataset = dataset.map(lambda e: e)
+
+        for i in range(repeats):
+            fliped_dataset = dataset.map(self._random_flip_question, batched=False)
+            new_dataset = concatenate_datasets([new_dataset, fliped_dataset])
+
+        return new_dataset
 
     def prepare_train_features(self, examples):
 
