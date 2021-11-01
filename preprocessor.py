@@ -5,6 +5,7 @@ from arguments import (
     DatasetArguments
 )
 from tokenizers import Tokenizer
+import numpy as np
 
 class Preprocessor:
 
@@ -75,7 +76,7 @@ class BaselinePreprocessor(Preprocessor):
 
         # TODO: tokenizer roberta일 경우 token_type_ids 반환하지 않도록 initialization시 설정
         tokenized_examples = self.get_tokenized_examples(examples)
-
+        tokenized_examples = self.masking_input_ids(tokenized_examples)
         # 길이가 긴 context가 등장할 경우 truncate를 진행해야하므로, 해당 데이터셋을 찾을 수 있도록 mapping 가능한 값이 필요합니다.
         sample_mapping = tokenized_examples.pop("overflow_to_sample_mapping")
         # token의 캐릭터 단위 position를 찾을 수 있도록 offset mapping을 사용합니다.
@@ -87,12 +88,14 @@ class BaselinePreprocessor(Preprocessor):
         tokenized_examples["end_positions"] = []
 
         for i, offsets in enumerate(offset_mapping):
-            input_ids = tokenized_examples["input_ids"][i]
+            input_ids = tokenized_examples["input_ids"][i] # split된 context별 token
+            # print('input_ids', i,' : ', input_ids)
             cls_index = input_ids.index(self.tokenizer.cls_token_id)  # cls index
 
             # sequence id를 설정합니다 (to know what is the context and what is the question).
+            
             sequence_ids = tokenized_examples.sequence_ids(i)
-
+            # print('sequece_ids: ',sequence_ids)
             # 하나의 example이 여러개의 span을 가질 수 있습니다.
             sample_index = sample_mapping[i]
             answers = examples[self.answer_column][sample_index]
@@ -165,5 +168,48 @@ class BaselinePreprocessor(Preprocessor):
                 for k, o in enumerate(tokenized_examples["offset_mapping"][i])
             ]
         return tokenized_examples
+
+    def masking_input_ids(self, examples):
+        
+        cls_token = 0
+        sep_token = 2
+        mask_token = 4
+        ratio = 0.3
+        MAX_MASK_NUM = 2
+
+        new_input_ids = []
+        past_question = []
+        past_masked_question = []
+        for question_include_context_ids in examples['input_ids']:
+            
+            question = []
+            for input_id in question_include_context_ids:
+                if input_id == cls_token :
+                    continue
+                if input_id == sep_token :
+                    break
+                question.append(input_id)
+            
+            new_sentence = past_question != question
+
+            past_question = question
+
+            if new_sentence:
+                mask = np.random.rand(len(question)) < ratio
+                if sum(mask) > MAX_MASK_NUM:
+                    mask_idx = np.where(mask)
+                    set_false_pos = np.random.choice(mask_idx[0], sum(mask) - MAX_MASK_NUM, replace=False)
+                    mask[set_false_pos] = False
+                masked_question = [mask_token if m else word for word, m in zip(question, mask)]
+            else :
+                masked_question = past_masked_question
+            
+            question_masked_ids = [cls_token] + masked_question + [sep_token] + question_include_context_ids[len(question)+2:]
+            past_masked_question = masked_question
+            new_input_ids.append(question_masked_ids)
+
+        examples['input_ids'] = new_input_ids
+        return examples
+
 
 
