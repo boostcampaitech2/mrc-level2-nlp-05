@@ -375,7 +375,9 @@ class QAProcessor(DataProcessor):
         self.test_features = dataset.map(self.prepare_test_features, batched=True, batch_size=32, remove_columns=remove_columns)
 
         if set_format:
-            self.test_datasets.set_format(type="torch", columns=["input_ids", "token_type_ids", "attention_mask"])
+            self.test_datasets.set_format(type="torch",  columns=["input_ids", "token_type_ids", "attention_mask"])
+
+        return self.test_features
 
     def postprocess_qa_predictions(
         self,
