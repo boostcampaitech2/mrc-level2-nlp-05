@@ -4,6 +4,12 @@ sys.path.append('..')
 from transformers.models.roberta.modeling_roberta import RobertaForQuestionAnswering
 from model.custom_heads import *
 
+class CustomRobertaForQuestionAnsweringWithRNNHead(RobertaForQuestionAnswering):
+    """RoBERTa QA Model with RNN Custom Head"""
+    def __init__(self, config):
+        super(CustomRobertaForQuestionAnsweringWithRNNHead, self).__init__(config)
+        self.qa_outputs = CustomHeadRNN(config)
+
 class CustomRobertaForQuestionAnsweringWithCNNHead(RobertaForQuestionAnswering):
     """RoBERTa QA Model with CNN Custom Head"""
     def __init__(self, config):
