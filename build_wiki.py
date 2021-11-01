@@ -1,5 +1,7 @@
+import os
 from collections import defaultdict
 from typing import Dict, Optional
+from datasets.load import load_from_disk
 
 import pandas as pd
 
@@ -117,29 +119,36 @@ def build_wiki(wiki_path: str, save_path: Optional[str] = None):
     wiki_dataset = load_wiki_from_json(wiki_path)
     print("wiki_dataset loaded")
 
-    wiki_dataset = split_into_sentences(wiki_dataset)
-    print("wiki_dataset splited into sentences")
-    print(wiki_dataset)
+    # wiki_dataset = split_into_sentences(wiki_dataset)
+    # print("wiki_dataset splited into sentences")
+    # print(wiki_dataset)
 
-    wiki_dataset = add_title_to_texts(wiki_dataset)
-    print("wiki_dataset title added")
-    print(wiki_dataset)
+    # wiki_dataset = add_title_to_texts(wiki_dataset)
+    # print("wiki_dataset title added")
+    # print(wiki_dataset)
 
     if save_path is not None:
         wiki_dataset.save_to_disk(save_path)
 
+    return wiki_dataset
+
 def get_wiki(wiki_path: str, save_path: Optional[str] = None) -> Dataset:
     """This is a helper function that can be imported and used in other scripts.
     This function returns the dataset built from `build_wiki()` function."""
-    wiki_dataset = build_wiki(wiki_path, save_path)
-    return wiki_dataset
+    if os.path.isdir(save_path) and len(os.listdir(save_path)) > 0:
+        print("Wiki dataset already built in save_path. End the script.")
+        wiki_dataset = load_from_disk(save_path)
+        return wiki_dataset
+    else:
+        wiki_dataset = build_wiki(wiki_path=wiki_path, save_path=save_path)
+        return wiki_dataset
 
 def main():
 
     wiki_path = "/opt/ml/data/wikipedia_documents.json"
     save_path = "/opt/ml/data/wiki_data"
 
-    build_wiki(wiki_path=wiki_path, save_path=save_path)
+    get_wiki(wiki_path, save_path)
 
 if __name__ == "__main__":
     main()
