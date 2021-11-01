@@ -793,9 +793,9 @@ class QAProcessor(DataProcessor):
 
     def masking_input_ids(self, examples):
         
-        CLS_TOKEN = 0
-        SEP_TOKEN = 2
-        MASK_TOKEN = 4
+        CLS_TOKEN = self.tokenizer.cls_token_id
+        SEP_TOKEN = self.tokenizer.sep_token_id
+        MASK_TOKEN = self.tokenizer.mask_token_id
         MASK_RATIO = self.dataset_args.token_masking_ratio
         MAX_MASK_NUM = self.dataset_args.token_masking_max
 
