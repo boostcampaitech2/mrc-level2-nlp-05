@@ -22,22 +22,10 @@ import wandb
 from arguments import DefaultArguments, DatasetArguments, ModelArguments, RetrieverArguments
 from processor import QAProcessor
 from trainer_qa import QATrainer, FreezeEmbeddingCallback, FreezeBackboneCallback
-from utils import increment_path
+from utils import increment_path, set_seed_all
 
 
 logger = transformers.logging.get_logger(__name__)
-
-
-def set_seed_all(seed):
-    """Fix the seed number for all"""
-    random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = True
-    set_seed(seed)
 
 
 def get_model(model_args: ModelArguments, config=None):

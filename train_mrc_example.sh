@@ -6,7 +6,7 @@ python train_mrc_v2.py \
     --max_seq_len 512 --max_ans_len 30 \
     --evaluation_strategy steps --eval_steps 100 --logging_steps 100 --save_steps 200 \
     --save_total_limit 5 \
-    --freeze_type roberta --freeze_epoch 3.0 \
+    --freeze_type roberta --freeze_epoch 1.0 \
     --label_smoothing_factor 0.02 \
     --run_name roberta_large_freeze_backbone \
     --wandb_project exp_trainer --wandb_entity this-is-real \
