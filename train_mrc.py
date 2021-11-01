@@ -31,9 +31,7 @@ from transformers import (
 )
 
 from datasets import load_from_disk, load_metric
-
-from preprocessor import BaselinePreprocessor
-from postprocessor import post_processing_function
+from processor import QAProcessor
 from retrieval import SparseRetrieval
 from utils import increment_path, LossObject, SaveLimitObject
 
@@ -60,18 +58,11 @@ def update_save_path(training_args):
 
 def set_logging(default_args, dataset_args, model_args, retriever_args, training_args):
     """logging setting 함수"""
-    logging_level_dict = {
-        "DEBUG": logging.DEBUG,         # 문제를 해결할 때 필요한 자세한 정보
-        "INFO": logging.INFO,           # 작업이 정상적으로 작동하고 있다는 확인 메시지
-        "WARNING": logging.WARNING,     # 예상하지 못한 일이 발생 or 발생 가능한 문제점을 명시
-        "ERROR": logging.ERROR,         # 프로그램이 함수를 실행하지 못 할 정도의 심각한 문제
-        "CRITICAL": logging.CRITICAL    # 프로그램이 동작할 수 없을 정도의 심각한 문제
-    }
     logging.basicConfig(
         format="%(asctime)s - %(module)s - %(levelname)s  %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
         handlers=[logging.StreamHandler(sys.stdout)],
-        level=logging_level_dict[default_args.log_level]
+        level=training_args.get_process_log_level()
     )
     logger.debug("Default arguments %s", default_args)
     logger.debug("Dataset arguments %s", dataset_args)
@@ -137,56 +128,28 @@ def get_model(model_args, training_args):
 
     return config, model, tokenizer, optimizer
 
-def get_data(dataset_args, training_args, tokenizer):
-    """데이터셋 생성, preprocess 적용, dataLoader 객체 생성 함수"""
-    datasets = load_from_disk(dataset_args.dataset_path)
-    train_dataset = datasets['train']
-    eval_dataset = datasets['validation'] 
-    eval_dataset_for_predict = datasets['validation']
-    column_names = train_dataset.column_names
-
-    preprocessor = BaselinePreprocessor(
-        dataset_args=dataset_args, tokenizer=tokenizer, column_names=column_names
-    )
-    # 모델 학습 및 training loss 계산을 위한 dataset
-    train_dataset = train_dataset.map(
-        preprocessor.prepare_train_features,
-        batched=True,
-        num_proc=dataset_args.num_workers,
-        remove_columns=column_names,
-        load_from_cache_file=not dataset_args.overwrite_cache,
-    )
-    # 모델 평가 및 eval loss 계산을 위한 dataset
-    eval_dataset = eval_dataset.map(
-        preprocessor.prepare_train_features,
-        batched=True,
-        num_proc=dataset_args.num_workers,
-        remove_columns=column_names,
-        load_from_cache_file=not dataset_args.overwrite_cache,
-    )
-    # evaluation(validation) 데이터셋에 대한 예측값 생성 및 평가지표 계산을 위한 dataset
-    eval_dataset_for_predict = eval_dataset_for_predict.map(
-        preprocessor.prepare_eval_features,
-        batched=True,
-        num_proc=dataset_args.num_workers,
-        remove_columns=column_names,
-        load_from_cache_file=not dataset_args.overwrite_cache,
-    )    
-
+def get_dataloader(qa_processor, dataset_args, training_args, tokenizer):
+    """dataLoader 객체 생성 함수"""
     data_collator = DataCollatorWithPadding(tokenizer)
 
+    train_features = qa_processor.get_train_features()
+    train_features = train_features.remove_columns(['example_id', 'offset_mapping', 'overflow_to_sample_mapping'])
+
+    eval_features = qa_processor.get_eval_features()
+    eval_features = eval_features.remove_columns(['example_id', 'offset_mapping', 'overflow_to_sample_mapping'])
+
     train_dataloader = DataLoader(
-        train_dataset,
+        train_features,
         collate_fn = data_collator,
         batch_size=training_args.per_device_train_batch_size
     )
     eval_dataloader = DataLoader(
-        eval_dataset,
+        eval_features,
         collate_fn = data_collator,
         batch_size=training_args.per_device_eval_batch_size
     )
 
-    return datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader
+    return train_dataloader, eval_dataloader
 
 def get_scheduler(optimizer, train_dataloader, training_args, model_args):
     num_training_steps = len(train_dataloader) // training_args.gradient_accumulation_steps * training_args.num_train_epochs
@@ -253,7 +216,7 @@ def train_step(model, optimizer, scheduler, batch, device):
 
     return loss.item()
 
-def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, dataset_args, training_args, checkpoint_folder, device):
+def evaluation_step(model, qa_processor, eval_features_for_predict, eval_examples, eval_dataloader, dataset_args, training_args, checkpoint_folder, device):
     """모든 evaluation dataset에 대한 loss 및 metric 계산 함수"""
     metric = load_metric("squad")
     model.eval()
@@ -275,7 +238,7 @@ def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, 
         start_logits_list.extend(start_logits.detach().cpu().numpy())
         end_logits_list.extend(end_logits.detach().cpu().numpy())
 
-    eval_dataset_for_predict.set_format(type=None, columns=list(eval_dataset_for_predict.features.keys()))
+    eval_features_for_predict.set_format(type=None, columns=list(eval_features_for_predict.features.keys()))
     predictions = (start_logits_list, end_logits_list)
 
     output_dir_origin = training_args.output_dir
@@ -284,7 +247,9 @@ def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, 
     training_args.output_dir = checkpoint_dir
     os.makedirs(checkpoint_dir)
     
-    eval_preds = post_processing_function(datasets['validation'], eval_dataset_for_predict, datasets, predictions, training_args, dataset_args)
+    eval_preds = qa_processor.post_processing_function(
+        eval_examples, eval_features_for_predict, predictions, training_args
+    )
     eval_metric = metric.compute(predictions=eval_preds.predictions, references=eval_preds.label_ids) # compute_metrics
 
     training_args.output_dir = output_dir_origin
@@ -294,7 +259,7 @@ def evaluation_step(model, datasets, eval_dataset_for_predict, eval_dataloader, 
 def train_mrc(
     default_args, dataset_args, model_args, retriever_args, training_args,
     model, optimizer, scheduler, tokenizer,
-    datasets, eval_dataset_for_predict,
+    qa_processor, eval_features_for_predict, eval_examples,
     train_dataloader, eval_dataloader,
     device
 ):
@@ -333,7 +298,8 @@ def train_mrc(
 
                 with torch.no_grad():
                     eval_metric, eval_loss, eval_num = evaluation_step(
-                        model, datasets, eval_dataset_for_predict, eval_dataloader,
+                        model, qa_processor,
+                        eval_features_for_predict, eval_examples, eval_dataloader,
                         dataset_args, training_args,
                         checkpoint_folder, device
                     )
@@ -384,8 +350,14 @@ def main():
     config, model, tokenizer, optimizer = get_model(model_args, training_args)
     model.to(device)
 
-    datasets, eval_dataset_for_predict, train_dataloader, eval_dataloader = get_data(dataset_args, training_args, tokenizer)
-
+    qa_processor = QAProcessor(
+        dataset_args=dataset_args,
+        tokenizer=tokenizer,
+        concat=dataset_args.concat_eval
+    )
+    eval_features_for_predict = qa_processor.get_eval_features()
+    eval_examples = qa_processor.get_eval_examples()
+    train_dataloader, eval_dataloader = get_dataloader(qa_processor, dataset_args, training_args, tokenizer)
     scheduler = get_scheduler(optimizer, train_dataloader, training_args, model_args)
 
     # set wandb
@@ -399,12 +371,12 @@ def main():
     wandb.config.update(dataset_args)
     wandb.config.update(model_args)
     wandb.config.update(retriever_args)
-    wandb.config.update(training_args)    
+    wandb.config.update(training_args)
 
     train_mrc(
         default_args, dataset_args, model_args, retriever_args, training_args,
         model, optimizer, scheduler, tokenizer,
-        datasets, eval_dataset_for_predict,
+        qa_processor, eval_features_for_predict, eval_examples,
         train_dataloader, eval_dataloader,
         device
     )

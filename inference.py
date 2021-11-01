@@ -107,7 +107,10 @@ def main():
     set_seed(training_args.seed)
 
     config = AutoConfig.from_pretrained(model_args.model)
-    tokenizer = AutoTokenizer.from_pretrained(model_args.model, use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_args.tokenizer if model_args.tokenizer is not None else model_args.model,
+        use_fast=True
+    )
     model = get_model(model_args, config=config)
 
     # Fixing max_seq_len

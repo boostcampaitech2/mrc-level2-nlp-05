@@ -103,6 +103,18 @@ class ModelArguments(BaseArguments):
     freeze_embedding_layer_weight: bool = False
     """freeze embedding layer's weight"""
 
+    freeze_pretrained_weight: str = "none"
+    """
+    freeze pretrained weight : 
+        none - freeze nothing
+        all - freeze all
+        first - freeze first n-epochs
+        last - freeze last n-epochs
+    """
+
+    freeze_pretrained_weight_epoch: int = 1
+    """freeze pretrained weight epoch"""    
+
     warmup_cycles: int = 1
     """the number of hard restarts to use in cosine warmup"""
 
