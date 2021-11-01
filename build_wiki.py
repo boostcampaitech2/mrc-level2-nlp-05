@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, Optional
 
 import pandas as pd
 
@@ -7,7 +7,7 @@ from transformers import AutoTokenizer
 from datasets import Dataset
 
 
-def build_wiki(
+def load_wiki_from_json(
     wiki_path: str = "/opt/ml/data/wikipedia_documents.json"
 ) -> Dataset:
 
@@ -110,12 +110,11 @@ def _split_into_sentences(
 def split_into_sentences(dataset: Dataset) -> Dataset:
     return dataset.map(_split_into_sentences, batched=True, num_proc=4)
 
+def build_wiki(wiki_path: str, save_path: Optional[str] = None):
+    """Builds wiki dataset from json file. 
+    Also, saves as a HuggingFace's arrow dataset if `save_path` is provided."""
 
-def main():
-    wiki_path = "/opt/ml/data/wikipedia_documents.json"
-    save_path = "/opt/ml/data/wiki_data"
-
-    wiki_dataset = build_wiki(wiki_path)
+    wiki_dataset = load_wiki_from_json(wiki_path)
     print("wiki_dataset loaded")
 
     wiki_dataset = split_into_sentences(wiki_dataset)
@@ -126,7 +125,21 @@ def main():
     print("wiki_dataset title added")
     print(wiki_dataset)
 
-    wiki_dataset.save_to_disk(save_path)
+    if save_path is not None:
+        wiki_dataset.save_to_disk(save_path)
+
+def get_wiki(wiki_path: str, save_path: Optional[str] = None) -> Dataset:
+    """This is a helper function that can be imported and used in other scripts.
+    This function returns the dataset built from `build_wiki()` function."""
+    wiki_dataset = build_wiki(wiki_path, save_path)
+    return wiki_dataset
+
+def main():
+
+    wiki_path = "/opt/ml/data/wikipedia_documents.json"
+    save_path = "/opt/ml/data/wiki_data"
+
+    build_wiki(wiki_path=wiki_path, save_path=save_path)
 
 if __name__ == "__main__":
     main()
