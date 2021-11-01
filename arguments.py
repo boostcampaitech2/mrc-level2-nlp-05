@@ -93,8 +93,10 @@ class ModelArguments(BaseArguments):
     loss_fn: Loss = Loss.CE
     """loss function used internally in the model"""
 
-    # not fully implemented
-    freeze_pretrained_weight_epoch: float = 1.0
+    freeze_type: Optional[str] = None
+    """Freeze embeddings or roberta (entire backbone) if provided"""
+
+    freeze_epoch: Optional[float] = 1.0
     """freeze pretrained weight epoch"""
 
     warmup_cycles: int = 1
