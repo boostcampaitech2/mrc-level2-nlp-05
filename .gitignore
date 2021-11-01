@@ -133,6 +133,7 @@ dmypy.json
 
 # PyTorch saved model & data files
 saved/
+models/*
 data/
 models/
 outputs/
@@ -142,9 +143,12 @@ results/
 *.bin
 *.bin.gz
 nohup.out
+runs/
+outputs/
 
 # vscode
 .vscode
 
 # etc
+.java/
 ipynb/shkim/

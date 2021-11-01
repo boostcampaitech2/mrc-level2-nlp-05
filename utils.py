@@ -2,6 +2,37 @@ import os
 import re
 import glob
 from pathlib import Path
+import shutil
+
+class LossObject:
+    """
+    loss 값을 관리하는 Object Class
+    """
+    def __init__(self):
+        self.loss = 0
+        self.example_cnt = 0
+    
+    def update(self, new_loss, new_example_cnt):
+        self.loss += new_loss
+        self.example_cnt += new_example_cnt
+
+    def get_avg_loss(self):
+        return self.loss / self.example_cnt
+
+    def reset(self):
+        self.loss = 0
+        self.example_cnt = 0
+
+class SaveLimitObject:
+    """저장되는 모델을 관리하는 Object Class"""
+    def __init__(self, save_total_limit):
+        self.save_total_limit = save_total_limit
+        self.paths = []
+
+    def update(self, new_path):
+        if len(self.paths) >= self.save_total_limit:
+            shutil.rmtree(self.paths.pop(0))            
+        self.paths.append(new_path)
 
 
 def increment_path(path, overwrite=False) -> str:
