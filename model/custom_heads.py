@@ -268,7 +268,6 @@ class CustomHeadAttention(nn.Module):
         self.classify_layer = nn.Linear(config.hidden_size, 2, bias=True)
         self.drop_out = nn.Dropout(0.5)
 
-
     def forward(self, x):
         sequence_output = x 
         dim_size = x.shape[2]
@@ -285,6 +284,37 @@ class CustomHeadAttention(nn.Module):
         logits = self.classify_layer(logits) 
 
         return logits
+
+class CustomHeadAttentionWithLN(nn.Module):
+    def __init__(self, config ):
+        super().__init__() 
+        self.config = config
+        self.query_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.key_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.value_layer = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
+        self.gelu = nn.GELU()
+        self.classify_layer = nn.Linear(config.hidden_size, 2, bias=True)
+        self.drop_out = nn.Dropout(0.5)
+        self.layer_norm = nn.LayerNorm(config.hidden_size)
+
+    def forward(self, x):
+        sequence_output = x 
+        dim_size = x.shape[2]
+
+        embedded_query = self.query_layer(sequence_output)
+        embedded_key = self.key_layer(sequence_output) 
+        embedded_value = self.value_layer(sequence_output)
+
+        attention_score = torch.matmul(embedded_query, torch.transpose(embedded_key, -2, -1)) / math.sqrt(dim_size)
+        attention_dists = F.softmax(attention_score, dim=-1)
+        logits = torch.matmul(attention_dists, embedded_value) 
+        logits = self.gelu(logits)
+        logits = self.drop_out(logits)
+        logits = self.layer_norm(x + logits)
+        logits = self.classify_layer(logits) 
+
+        return logits
+
 
 class CustomHeadAttention_V2(nn.Module):
     def __init__(self, config):
@@ -308,6 +338,32 @@ class CustomHeadAttention_V2(nn.Module):
         attn_values = torch.matmul(attn_dists, value)
 
         logit = self.fc(self.dropout(attn_values))
+
+        return logit
+
+class CustomHeadAttentionWithLN_V2(nn.Module):
+    def __init__(self, config):
+        super(CustomHeadAttentionWithLN_V2, self).__init__()
+        self.query_layer = nn.Linear(config.hidden_size, config.hidden_size)
+        self.key_layer = nn.Linear(config.hidden_size, config.hidden_size)
+        self.value_layer = nn.Linear(config.hidden_size, config.hidden_size)
+        self.dropout = nn.Dropout(p=config.dropout_ratio)
+        self.layer_norm = nn.LayerNorm(config.hidden_size)
+        self.fc = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, hidden_states):
+        query = self.query_layer(hidden_states)
+        key = self.key_layer(hidden_states)
+        value = self.value_layer(hidden_states)
+
+        d_k = key.shape[-1]
+
+        attn_scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
+        attn_dists = F.softmax(attn_scores, dim=-1)
+        attn_values = torch.matmul(attn_dists, value)
+
+        output = self.layer_norm(hidden_states + self.dropout(attn_values))
+        logit = self.fc(output)
 
         return logit
 
