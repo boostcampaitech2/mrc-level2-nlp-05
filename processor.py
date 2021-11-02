@@ -368,7 +368,13 @@ class QAProcessor(DataProcessor):
 
         self.is_train = True
 
-        self.train_features = dataset.map(self.prepare_train_features, batched=True, batch_size=32, remove_columns=remove_columns)
+        self.train_features = dataset.map(self.prepare_train_features, batched=True, batch_size=32, remove_columns=remove_columns, num_proc=4)
+
+        if self.dataset_args.token_masking_with_normal_data:
+            self.is_train = False
+            self.non_mask_features = dataset.map(self.prepare_train_features, batched=True, batch_size=32, remove_columns=remove_columns, num_proc=4)
+            assert self.train_features.features.type == self.non_mask_features.features.type
+            self.train_features = concatenate_datasets([self.train_features, self.non_mask_features])
         
         if set_format:
             self.train_features.set_format(type="torch", columns=["input_ids", "token_type_ids", "attention_mask", "start_positions", "end_positions"])
@@ -838,6 +844,6 @@ class QAProcessor(DataProcessor):
             question_masked_ids = [CLS_TOKEN] + masked_question + [SEP_TOKEN] + question_include_context_ids[len(question)+2:]
             past_masked_question = masked_question
             new_input_ids.append(question_masked_ids)
-
+        
         examples['input_ids'] = new_input_ids
         return examples

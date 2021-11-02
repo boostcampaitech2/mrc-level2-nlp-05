@@ -72,6 +72,9 @@ class DatasetArguments(BaseArguments):
     token_masking_max: int = 2
     """Maximum number of <MASK> token"""
 
+    token_masking_with_normal_data: bool = False
+    """Concat masking data and non-masking data"""
+
 @dataclass
 class ModelArguments(BaseArguments):
     """Model Arguements"""
