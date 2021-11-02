@@ -236,7 +236,7 @@ class QAProcessor(DataProcessor):
         # truncation과 padding(length가 짧을때만)을 통해 toknization을 진행하며, stride를 이용하여 overflow를 유지합니다.
         # 각 example들은 이전의 context와 조금씩 겹치게됩니다.
         tokenized_examples = self.get_tokenized_features(examples)
-        if not self.is_eval :
+        if self.is_train :
             tokenized_examples = self.masking_input_ids(tokenized_examples)
 
         # 길이가 긴 context가 등장할 경우 truncate를 진행해야하므로, 해당 데이터셋을 찾을 수 있도록 mapping 가능한 값이 필요합니다.
@@ -406,6 +406,8 @@ class QAProcessor(DataProcessor):
 
         if remove_columns is None:
             remove_columns = dataset.column_names
+        
+        self.is_train = False
 
         self.test_features = dataset.map(self.prepare_test_features, batched=True, batch_size=32, remove_columns=remove_columns)
 
