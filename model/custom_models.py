@@ -28,11 +28,23 @@ class CustomRobertaForQuestionAnsweringWithAttentionHead(RobertaForQuestionAnswe
         super(CustomRobertaForQuestionAnsweringWithAttentionHead, self).__init__(config)
         self.qa_outputs = CustomHeadAttention(config)
 
+class CustomRobertaForQuestionAnsweringWithAttentionWithLNHead(RobertaForQuestionAnswering):
+    """RoBERTa QA Model with Attention + LayerNorm Custom Head (by zeu)"""
+    def __init__(self, config):
+        super(CustomRobertaForQuestionAnsweringWithAttentionWithLNHead, self).__init__(config)
+        self.qa_outputs = CustomHeadAttentionWithLN(config)
+
 class CustomRobertaForQuestionAnsweringWithAttentionHead_V2(RobertaForQuestionAnswering):
     """RoBERTa QA Model with Attention Custom Head (by sunghan)"""
     def __init__(self, config):
         super(CustomRobertaForQuestionAnsweringWithAttentionHead_V2, self).__init__(config)
-        self.qa_outputs = CustomHeadAttention_V2(config)        
+        self.qa_outputs = CustomHeadAttention_V2(config)
+
+class CustomRobertaForQuestionAnsweringWithAttentionWithLNHead_V2(RobertaForQuestionAnswering):
+    """RoBERTa QA Model with Attention + LayerNorm Custom Head (by sunghan)"""
+    def __init__(self, config):
+        super(CustomRobertaForQuestionAnsweringWithAttentionWithLNHead_V2, self).__init__(config)
+        self.qa_outputs = CustomHeadAttentionWithLN_V2(config)    
     
 class CustomRobertaForQuestionAnsweringWithAttentionCNNHead(RobertaForQuestionAnswering):
     """RoBERTa QA Model with Attention + CNN Custom Head"""
