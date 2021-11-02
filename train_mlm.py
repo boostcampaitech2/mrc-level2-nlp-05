@@ -42,7 +42,7 @@ from datasets import load_metric
 
 import wandb
 
-from arguments import DefaultArguments, DatasetArguments, ModelArguments, RetrieverArguments
+from arguments import DefaultArguments, DatasetArguments, ModelArguments
 from build_wiki import get_wiki
 from utils import increment_path, set_seed_all
 
@@ -52,9 +52,9 @@ logger = transformers.logging.get_logger(__name__)
 
 def main():
     parser = HfArgumentParser(
-        (DatasetArguments, ModelArguments, TrainingArguments)
+        (DefaultArguments, DatasetArguments, ModelArguments, TrainingArguments)
     )
-    dataset_args, model_args, training_args = parser.parse_args_into_dataclasses()
+    default_args, dataset_args, model_args, training_args = parser.parse_args_into_dataclasses()
 
     # Setup logging
     log_level = training_args.get_process_log_level()
@@ -163,6 +163,14 @@ def main():
 
     if training_args.do_eval:
         eval_dataset = tokenized_datasets["test"]
+
+    # Initialize wandb
+    wandb.init(
+        project=default_args.wandb_project, 
+        entity=default_args.wandb_entity, 
+        name=training_args.run_name,
+        notes=default_args.description,
+    )
 
     MLM_PROB = 0.15
     data_collator = DataCollatorForLanguageModeling(
