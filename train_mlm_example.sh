@@ -1,8 +1,13 @@
 python train_mlm.py --model klue/roberta-large \
-    --output_dir ./pretrained --logging_dir ./pretrained_logs \
+    --seed 42 \
+    --output_dir ./saved --logging_dir ./logs \
     --evaluation_strategy steps --do_train --do_eval \
+    --save_total_limit 5 \
     --max_seq_len 512 \
-    --learning_rate 1e-5 --weight_decay 0.01 \
+    --learning_rate 5e-5 --weight_decay 0.01 \
     --num_train_epochs 5 \
     --per_device_train_batch_size 8 --per_device_eval_batch_size 16 \
-    --gradient_accumulation_steps 2 --lr_scheduler_type linear
+    --gradient_accumulation_steps 2 --lr_scheduler_type linear \
+    --run_name exp_mlm_roberta_large \
+    --wandb_project exp_mlm --wandb_entity this-is-real \
+    --description mlm_lr5e-5
