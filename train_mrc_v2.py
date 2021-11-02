@@ -86,8 +86,8 @@ def main():
     set_seed_all(training_args.seed)
     print(f"seed number: {training_args.seed}")
 
-    config = AutoConfig.from_pretrained(model_args.model)
-    tokenizer = AutoTokenizer.from_pretrained(model_args.model, use_fast=True)
+    config = AutoConfig.from_pretrained(model_args.config if model_args.config is not None else model_args.model)
+    tokenizer = AutoTokenizer.from_pretrained(model_args.tokenizer if model_args.tokenizer is not None else model_args.model, use_fast=True)
     model = get_model(model_args, config)
 
     print(f"config: {config}")
