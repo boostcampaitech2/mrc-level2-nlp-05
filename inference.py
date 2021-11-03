@@ -22,6 +22,7 @@ from arguments import ModelArguments, DatasetArguments, RetrieverArguments
 from processor import QAProcessor
 from trainer_qa import QATrainer
 
+import pandas as pd
 
 logger = transformers.logging.get_logger(__name__)
 
@@ -50,15 +51,9 @@ def run_sparse_retrieval(
     context_path: str = "wikipedia_documents.json",
 ) -> Dataset:
     
-    retriever = SparseRetrieval(tokenize_fn, data_path, context_path)
-    retriever.get_sparse_embedding_bm25()
-
-    if retriever_args.use_faiss:
-        retriever.build_faiss(num_clusters=retriever_args.num_clusters)
-        df = retriever.retrieve_faiss(
-            examples, topk=retriever_args.top_k_retrieval
-        )
-    else:
+    if retriever_args.retriever_type == "SparseRetrieval":
+        retriever = SparseRetrieval(tokenize_fn, data_path, context_path)
+        retriever.get_sparse_embedding_bm25()
         df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
     
     if training_args.do_predict:
@@ -86,8 +81,13 @@ def run_sparse_retrieval(
                 "question": Value(dtype="string", id=None),
             }
         )
-    
-    dataset = Dataset.from_pandas(df, features=f)
+    if retriever_args.retriever_type == "SparseRetrieval":
+        dataset = Dataset.from_pandas(df, features=f)
+
+    elif retriever_args.retriever_type == "ElasticSearch":
+        df = pd.read_csv('ES_contest_main.csv')
+        dataset = Dataset.from_pandas(df, features=f)
+
     return dataset
 
 

@@ -37,6 +37,9 @@ class DatasetArguments(BaseArguments):
     dataset_path: str = "/opt/ml/data"
     """path for the dataset"""
 
+    test_eval_dataset_path: str = None
+    """path for the test validation dataset"""
+
     max_seq_len: int = 384
     """maximum total input sequence length after tokenization"""
 
@@ -65,6 +68,15 @@ class DatasetArguments(BaseArguments):
 
     concat_eval: bool = False
     """Whether concat to train set and eval set"""
+
+    token_masking_ratio: float = 0.0
+    """<MASK> tokens per total tokens ratio """
+
+    token_masking_max: int = 2
+    """Maximum number of <MASK> token"""
+
+    token_masking_with_normal_data: bool = False
+    """Concat masking data and non-masking data"""
 
 @dataclass
 class ModelArguments(BaseArguments):
@@ -137,6 +149,11 @@ class RetrieverArguments(BaseArguments):
 
     num_clusters: int = 64
     """num clusters to use for faiss"""
+    
+    retriever_type: str = 'SparseRetrieval'
+    """
+        SparseRetrieval or ElasticSearch
+    """
 
 @dataclass
 class DefaultArguments(BaseArguments):

@@ -81,10 +81,14 @@ class QAProcessor(DataProcessor):
 
         self.tokenizer = tokenizer
 
+        self.is_train = True
+
         if concat:
             # concatenate train and eval set to train set
             self.train_dataset = concatenate_datasets([self.train_dataset, self.eval_dataset])
 
+        if dataset_args.test_eval_dataset_path is not None:
+            self.eval_dataset = load_from_disk(os.path.join(self.data_dir, dataset_args.test_eval_dataset_path))
         # self.train_dataset = self.train_dataset.map(self._flatten_multiple_answers, batched=True, batch_size=1, remove_columns=["answers"])
         # self.eval_dataset  = self.eval_dataset.map(self._flatten_multiple_answers, batched=True, batch_size=1, remove_columns=["answers"])
 
@@ -234,6 +238,8 @@ class QAProcessor(DataProcessor):
         # truncation과 padding(length가 짧을때만)을 통해 toknization을 진행하며, stride를 이용하여 overflow를 유지합니다.
         # 각 example들은 이전의 context와 조금씩 겹치게됩니다.
         tokenized_examples = self.get_tokenized_features(examples)
+        if self.is_train :
+            tokenized_examples = self.masking_input_ids(tokenized_examples)
 
         # 길이가 긴 context가 등장할 경우 truncate를 진행해야하므로, 해당 데이터셋을 찾을 수 있도록 mapping 가능한 값이 필요합니다.
         sample_mapping = tokenized_examples["overflow_to_sample_mapping"]
@@ -362,7 +368,15 @@ class QAProcessor(DataProcessor):
         if remove_columns is None:
             remove_columns = dataset.column_names
 
-        self.train_features = dataset.map(self.prepare_train_features, batched=True, batch_size=32, remove_columns=remove_columns)
+        self.is_train = True
+
+        self.train_features = dataset.map(self.prepare_train_features, batched=True, batch_size=32, remove_columns=remove_columns, num_proc=4)
+
+        if self.dataset_args.token_masking_with_normal_data:
+            self.is_train = False
+            self.non_mask_features = dataset.map(self.prepare_train_features, batched=True, batch_size=32, remove_columns=remove_columns, num_proc=4)
+            assert self.train_features.features.type == self.non_mask_features.features.type
+            self.train_features = concatenate_datasets([self.train_features, self.non_mask_features])
         
         if set_format:
             self.train_features.set_format(type="torch", columns=["input_ids", "token_type_ids", "attention_mask", "start_positions", "end_positions"])
@@ -376,6 +390,8 @@ class QAProcessor(DataProcessor):
 
         if remove_columns is None:
             remove_columns = dataset.column_names
+
+        self.is_train = False
 
         self.eval_features = dataset.map(self.prepare_train_features, batched=True, batch_size=32, remove_columns=remove_columns)
         
@@ -398,6 +414,8 @@ class QAProcessor(DataProcessor):
 
         if remove_columns is None:
             remove_columns = dataset.column_names
+        
+        self.is_train = False
 
         self.test_features = dataset.map(self.prepare_test_features, batched=True, batch_size=32, remove_columns=remove_columns)
 
@@ -789,3 +807,45 @@ class QAProcessor(DataProcessor):
                     )
 
         plt.show()
+
+    def masking_input_ids(self, examples):
+        
+        CLS_TOKEN = self.tokenizer.cls_token_id
+        SEP_TOKEN = self.tokenizer.sep_token_id
+        MASK_TOKEN = self.tokenizer.mask_token_id
+        MASK_RATIO = self.dataset_args.token_masking_ratio
+        MAX_MASK_NUM = self.dataset_args.token_masking_max
+
+        new_input_ids = []
+        past_question = []
+        past_masked_question = []
+        for question_include_context_ids in examples['input_ids']:
+            
+            question = []
+            for input_id in question_include_context_ids:
+                if input_id == CLS_TOKEN :
+                    continue
+                if input_id == SEP_TOKEN :
+                    break
+                question.append(input_id)
+            
+            new_sentence = past_question != question
+
+            past_question = question
+
+            if new_sentence:
+                mask = np.random.rand(len(question)) < MASK_RATIO
+                if sum(mask) > MAX_MASK_NUM:
+                    mask_idx = np.where(mask)
+                    set_false_pos = np.random.choice(mask_idx[0], sum(mask) - MAX_MASK_NUM, replace=False)
+                    mask[set_false_pos] = False
+                masked_question = [MASK_TOKEN if m else word for word, m in zip(question, mask)]
+            else :
+                masked_question = past_masked_question
+            
+            question_masked_ids = [CLS_TOKEN] + masked_question + [SEP_TOKEN] + question_include_context_ids[len(question)+2:]
+            past_masked_question = masked_question
+            new_input_ids.append(question_masked_ids)
+        
+        examples['input_ids'] = new_input_ids
+        return examples
