@@ -146,6 +146,11 @@ class RetrieverArguments(BaseArguments):
 
     num_clusters: int = 64
     """num clusters to use for faiss"""
+    
+    retriever_type: str = 'SparseRetrieval'
+    """
+        SparseRetrieval or ElasticSearch
+    """
 
 @dataclass
 class DefaultArguments(BaseArguments):
