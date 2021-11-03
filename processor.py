@@ -87,6 +87,8 @@ class QAProcessor(DataProcessor):
             # concatenate train and eval set to train set
             self.train_dataset = concatenate_datasets([self.train_dataset, self.eval_dataset])
 
+        if dataset_args.test_eval_dataset_path is not None:
+            self.eval_dataset = load_from_disk(os.path.join(self.data_dir, dataset_args.test_eval_dataset_path))
         # self.train_dataset = self.train_dataset.map(self._flatten_multiple_answers, batched=True, batch_size=1, remove_columns=["answers"])
         # self.eval_dataset  = self.eval_dataset.map(self._flatten_multiple_answers, batched=True, batch_size=1, remove_columns=["answers"])
 
