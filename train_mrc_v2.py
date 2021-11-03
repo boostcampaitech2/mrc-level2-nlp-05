@@ -47,6 +47,9 @@ def main():
         (DefaultArguments, DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments)
     )
     default_args, dataset_args, model_args, retriever_args, training_args = parser.parse_args_into_dataclasses()
+    
+    if training_args.label_names is None:
+        training_args.label_names = ["start_positions", "end_positions"]
 
     # Setup logging
     log_level = training_args.get_process_log_level()
