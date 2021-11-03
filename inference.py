@@ -18,10 +18,13 @@ from datasets import load_metric, load_from_disk, Sequence, Value, Features, Dat
 
 from retrieval import SparseRetrieval
 
-from arguments import ModelArguments, DatasetArguments, RetrieverArguments
+from arguments import ModelArguments, DatasetArguments, RetrieverArguments, DataTrainingArguments
 from processor import QAProcessor
 from trainer_qa import QATrainer
 
+import new_es_retrieval
+
+import pandas as pd
 
 logger = transformers.logging.get_logger(__name__)
 
@@ -40,27 +43,29 @@ def get_model(model_args: ModelArguments, config=None):
         return model
 
 
-def run_sparse_retrieval(
+def run_retrieval(
     tokenize_fn: Callable[[str], List[str]],
     examples: Dataset,
     training_args: TrainingArguments,
     dataset_args: DatasetArguments,
+    data_args: DataTrainingArguments,
     retriever_args: RetrieverArguments,
     data_path: str = "/opt/ml/data/",
     context_path: str = "wikipedia_documents.json",
 ) -> Dataset:
     
-    retriever = SparseRetrieval(tokenize_fn, data_path, context_path)
-    retriever.get_sparse_embedding_bm25()
-
-    if retriever_args.use_faiss:
-        retriever.build_faiss(num_clusters=retriever_args.num_clusters)
-        df = retriever.retrieve_faiss(
-            examples, topk=retriever_args.top_k_retrieval
-        )
-    else:
+    if retriever_args.retriever_type == 'SparseRetrieval':
+        retriever = SparseRetrieval(tokenize_fn, data_path, context_path)
+        retriever.get_sparse_embedding_bm25()
         df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
-    
+        
+    elif data_args.retriever_type == 'elasticsearch':
+        df = pd.read_csv('ES_contest_main.csv')
+
+    else: 
+        print('Check your spelling!')
+        raise KeyboardInterrupt
+        
     if training_args.do_predict:
         f = Features(
             {
@@ -93,7 +98,7 @@ def run_sparse_retrieval(
 
 def main():
     parser = HfArgumentParser(
-        (DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments)
+        (DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments, DataTrainingArguments)
     )
     dataset_args, model_args, retriever_args, training_args = parser.parse_args_into_dataclasses()
 
@@ -128,7 +133,7 @@ def main():
     test_examples = processor.get_test_examples()
 
     if retriever_args.use_eval_retrieval:
-        test_examples = run_sparse_retrieval(
+        test_examples = run_retrieval(
             tokenizer.tokenize,
             test_examples,
             training_args,
