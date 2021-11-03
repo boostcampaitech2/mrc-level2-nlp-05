@@ -137,12 +137,10 @@ class RetrieverArguments(BaseArguments):
 
     num_clusters: int = 64
     """num clusters to use for faiss"""
-
-    retriever_type: str = field(
-        default='SparseRetrieval', metadata={
-            "help": "Default setting will adopt the sparse retriever or elasticsearch"
-            }, # DenseRetrieval...!
-    )
+    retriever_type: str = 'SparseRetrieval'
+    """
+        SparseRetrieval or ElasticSearch
+    """
 
 @dataclass
 class DefaultArguments(BaseArguments):

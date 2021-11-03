@@ -18,11 +18,9 @@ from datasets import load_metric, load_from_disk, Sequence, Value, Features, Dat
 
 from retrieval import SparseRetrieval
 
-from arguments import ModelArguments, DatasetArguments, RetrieverArguments, DataTrainingArguments
+from arguments import ModelArguments, DatasetArguments, RetrieverArguments
 from processor import QAProcessor
 from trainer_qa import QATrainer
-
-import new_es_retrieval
 
 import pandas as pd
 
@@ -43,29 +41,21 @@ def get_model(model_args: ModelArguments, config=None):
         return model
 
 
-def run_retrieval(
+def run_sparse_retrieval(
     tokenize_fn: Callable[[str], List[str]],
     examples: Dataset,
     training_args: TrainingArguments,
     dataset_args: DatasetArguments,
-    data_args: DataTrainingArguments,
     retriever_args: RetrieverArguments,
     data_path: str = "/opt/ml/data/",
     context_path: str = "wikipedia_documents.json",
 ) -> Dataset:
     
-    if retriever_args.retriever_type == 'SparseRetrieval':
+    if retriever_args.retriever_type == "SparseRetrieval":
         retriever = SparseRetrieval(tokenize_fn, data_path, context_path)
         retriever.get_sparse_embedding_bm25()
         df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
-        
-    elif data_args.retriever_type == 'elasticsearch':
-        df = pd.read_csv('ES_contest_main.csv')
-
-    else: 
-        print('Check your spelling!')
-        raise KeyboardInterrupt
-        
+    
     if training_args.do_predict:
         f = Features(
             {
@@ -91,23 +81,28 @@ def run_retrieval(
                 "question": Value(dtype="string", id=None),
             }
         )
-    
-    dataset = Dataset.from_pandas(df, features=f)
+    if retriever_args.retriever_type == "SparseRetrieval":
+        dataset = Dataset.from_pandas(df, features=f)
+
+    elif retriever_args.retriever_type == "ElasticSearch":
+        df = pd.read_csv('ES_contest_main.csv')
+        dataset = Dataset.from_pandas(df, features=f)
+
     return dataset
 
 
 def main():
     parser = HfArgumentParser(
-        (DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments, DataTrainingArguments)
+        (DatasetArguments, ModelArguments, RetrieverArguments, TrainingArguments)
     )
     dataset_args, model_args, retriever_args, training_args = parser.parse_args_into_dataclasses()
 
-    log_level = training_args.get_process_log_level()
-    logger.setLevel(log_level)
-    datasets.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.enable_default_handler()
-    transformers.utils.logging.enable_explicit_format()
+    # log_level = training_args.get_process_log_level()
+    # logger.setLevel(log_level)
+    # datasets.utils.logging.set_verbosity(log_level)
+    # transformers.utils.logging.set_verbosity(log_level)
+    # transformers.utils.logging.enable_default_handler()
+    # transformers.utils.logging.enable_explicit_format()
 
     set_seed(training_args.seed)
 
@@ -133,7 +128,7 @@ def main():
     test_examples = processor.get_test_examples()
 
     if retriever_args.use_eval_retrieval:
-        test_examples = run_retrieval(
+        test_examples = run_sparse_retrieval(
             tokenizer.tokenize,
             test_examples,
             training_args,
