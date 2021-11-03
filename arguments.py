@@ -37,6 +37,9 @@ class DatasetArguments(BaseArguments):
     dataset_path: str = "/opt/ml/data"
     """path for the dataset"""
 
+    test_eval_dataset_path: str = None
+    """path for the test validation dataset"""
+
     max_seq_len: int = 384
     """maximum total input sequence length after tokenization"""
 
