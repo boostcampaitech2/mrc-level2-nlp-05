@@ -136,30 +136,28 @@ python train_mrc.py \
     --output_dir ./models \
     --logging_dir ./logs --seed 42 \
     --model klue/roberta-large \
-    --num_train_epochs 5 \
+    --num_train_epochs 8 \
     --use_max_padding \
     --do_eval \
     --warmup_steps 500 \
     --eval_steps 100 \
     --wandb_project mrc-head-test \
-    --freeze_pretrained_weight first \
-    --freeze_pretrained_weight_epoch 1 \
     --save_total_limit 2 \
-    --custom_model CustomRobertaForQuestionAnsweringWithAttentionCNNHead \
+    --freeze_pretrained_weight first \
+    --freeze_pretrained_weight_epoch 1
+    #--token_masking_ratio 0.7 \
 
-python train_mrc.py \
-    --run_name test_attention_head_roberta_large_f1 \
-    --description "attention head freeze1" \
-    --output_dir ./models \
-    --logging_dir ./logs --seed 42 \
-    --model klue/roberta-large \
-    --num_train_epochs 5 \
-    --use_max_padding \
-    --do_eval \
-    --warmup_steps 500 \
-    --eval_steps 100 \
-    --wandb_project mrc-head-test \
-    --freeze_pretrained_weight first \
-    --freeze_pretrained_weight_epoch 1 \
-    --save_total_limit 2 \
-    --custom_model CustomRobertaForQuestionAnsweringWithAttentionHead \
+# python train_mrc.py \
+#     --run_name test_attention_head_roberta_large_f1 \
+#     --description "attention head freeze1" \
+#     --output_dir ./models \
+#     --logging_dir ./logs --seed 42 \
+#     --model klue/roberta-large \
+#     --num_train_epochs 10 \
+#     --use_max_padding \
+#     --do_eval \
+#     --warmup_steps 500 \
+#     --eval_steps 100 \
+#     --wandb_project mrc-head-test \
+#     --save_total_limit 2 \
+#     --custom_model CustomRobertaForQuestionAnsweringWithAttentionHead \
