@@ -2,8 +2,6 @@
 
 ## Boostcamp AI-Tech 2기
 
-<br>
-
 ## DPR Updates
 ### `train_dpr.py` 추가
 - `train_dpr.py` 로 새로 models/retriever 폴더에 p_encoder, q_encoder 저장할 수 있게 구현
@@ -14,12 +12,8 @@
         - DPR training_args => retriever_args
         - MRC training_args => 유지
 
-<br>
-
 ### `inference.py` 수정 및 기능 추가
 - 위에서 언급했다시피 수정된 arguments 들을 받을 수 있는 구조
-
-<br>
 
 ### `retrieval.py` 수정 및 기능 추가
 - `main`에 학습된 DPR 이 concat 된 train set 에 대한 Top K Precision 계산 가능 -> 오래 걸립니다...
