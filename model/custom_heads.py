@@ -392,7 +392,7 @@ class CustomHeadAttentionCNN(nn.Module):
             padding=1)
         self.conv_5 = nn.Conv1d(
             in_channels=config.hidden_size, 
-            out_channels=config.hidden_size // 3, 
+            out_channels=config.hidden_size // 3 + 1, 
             kernel_size=5, 
             padding=2)
         self.fc = nn.Linear(config.hidden_size, 2)
