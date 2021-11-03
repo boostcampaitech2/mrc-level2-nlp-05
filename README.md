@@ -2,7 +2,29 @@
 
 ## Boostcamp AI-Tech 2기
 
-# Baseline v2.0 for ODQA
+<br>
+
+## DPR Updates
+### `train_dpr.py` 추가
+- `train_dpr.py` 로 새로 models/retriever 폴더에 p_encoder, q_encoder 저장할 수 있게 구현
+- `arguments.py` 에 관련된 arguments 확인...! 
+    - 대표적으로 `retrieve_eval` arg 를 삭제하고 `str`을 받는 `retriever_type` 를 사용하는 거 확인
+    - `SparseRetrieval`, `DenseRetrieval`, `retrieved_df` -> 마지막은 이미 만들어진 df 사용시
+    - training_args는 `inference.py` 과 `TrainingArguments` (DPR과 MRC)들이 겹치기에 따로 training_args 가 아닌 retriever_args 에 포함된 외부 args 활용
+        - DPR training_args => retriever_args
+        - MRC training_args => 유지
+
+<br>
+
+### `inference.py` 수정 및 기능 추가
+- 위에서 언급했다시피 수정된 arguments 들을 받을 수 있는 구조
+
+<br>
+
+### `retrieval.py` 수정 및 기능 추가
+- `main`에 학습된 DPR 이 concat 된 train set 에 대한 Top K Precision 계산 가능 -> 오래 걸립니다...
+- `DenseRetrieval` Class 추가
+
 
 ## Updates
 (02:57 AM, Nov 1, 2021)

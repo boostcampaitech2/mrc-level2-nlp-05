@@ -34,10 +34,10 @@ class BaseArguments(Serializable):
 class DatasetArguments(BaseArguments):
     """Dataset/DataLoader Arguments"""
 
-    dataset_path: str = "/opt/ml/data"
+    dataset_path: str = "/opt/ml/data/"
     """path for the dataset"""
 
-    max_seq_len: int = 384
+    max_seq_len: int = 512
     """maximum total input sequence length after tokenization"""
 
     stride_len: int = 128
@@ -123,20 +123,35 @@ class ModelArguments(BaseArguments):
 class RetrieverArguments(BaseArguments):
     """Retriever Arguments"""
 
-    retriever: str = "tf-idf"
+    retriever_type: str = "SparseRetrieval"
     """name of retriever"""
 
     top_k_retrieval: int = 1
     """numb top-k passages to retrieve"""
 
-    use_eval_retrieval: bool = True
-    """whether to run retrieval on eval"""
+    # num_negs: int = 2
+    # """numb of negative samples for in-batch negatives"""
 
-    use_faiss: bool = False
-    """whether to build with faiss"""
+    dpr_model: str =  "bert-base-multilingual-cased"
+    """path to pretrained model or model identifier from huggingface.co/models"""    
 
-    num_clusters: int = 64
-    """num clusters to use for faiss"""
+    dpr_learning_rate: float = 3e-5
+    """learning rate for DPR fine-tuning"""
+
+    dpr_train_batch: int = 8
+    """train batch size for DPR fine-tuning"""
+
+    dpr_eval_batch: int = 8
+    """eval batch size for DPR fine-tuning"""
+
+    dpr_epochs: int = 3
+    """numb of epochs for DPR fine-tuning"""
+
+    dpr_weight_decay: float = 0.01
+    """weight decay for DPR fine-tuning"""
+
+    dpr_eval_steps: int = 50
+    """numb of epochs for DPR fine-tuning"""
 
 @dataclass
 class DefaultArguments(BaseArguments):
@@ -145,7 +160,7 @@ class DefaultArguments(BaseArguments):
     description: str = ""
     """brief description of the experiment"""
 
-    wandb_entity: str = "this-is-real"
+    wandb_entity: str = ""
     """wandb entity name"""
 
     wandb_project: str = "mrc"

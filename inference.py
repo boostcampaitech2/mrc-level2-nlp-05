@@ -5,9 +5,9 @@ from typing import Callable, List, Dict, NoReturn, Tuple
 from importlib import import_module
 
 import numpy as np
+import pandas as pd
 
 import torch
-import torch.nn as np
 
 import transformers
 from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer
@@ -16,7 +16,8 @@ from transformers import EvalPrediction, HfArgumentParser, TrainingArguments, se
 import datasets
 from datasets import load_metric, load_from_disk, Sequence, Value, Features, Dataset, DatasetDict
 
-from retrieval import SparseRetrieval
+from retrieval import SparseRetrieval,DenseRetrieval
+from train_dpr import get_dense_args
 
 from arguments import ModelArguments, DatasetArguments, RetrieverArguments
 from processor import QAProcessor
@@ -40,27 +41,41 @@ def get_model(model_args: ModelArguments, config=None):
         return model
 
 
-def run_sparse_retrieval(
-    tokenize_fn: Callable[[str], List[str]],
+def run_retrieval(
+    # tokenize_fn: Callable[[str], List[str]],
     examples: Dataset,
     training_args: TrainingArguments,
-    dataset_args: DatasetArguments,
     retriever_args: RetrieverArguments,
     data_path: str = "/opt/ml/data/",
     context_path: str = "wikipedia_documents.json",
 ) -> Dataset:
     
-    retriever = SparseRetrieval(tokenize_fn, data_path, context_path)
-    retriever.get_sparse_embedding_bm25()
-
-    if retriever_args.use_faiss:
-        retriever.build_faiss(num_clusters=retriever_args.num_clusters)
-        df = retriever.retrieve_faiss(
-            examples, topk=retriever_args.top_k_retrieval
-        )
-    else:
+    # Query에 맞는 Passage들을 Retrieval 합니다.
+    if retriever_args.retriever_type == 'SparseRetrieval':
+        tokenizer = AutoTokenizer.from_pretrained('klue/bert-base')
+        retriever = SparseRetrieval(
+        tokenize_fn=tokenizer.tokenize, data_path=data_path, context_path=context_path
+        ) 
+        retriever.get_sparse_embedding_bm25()
         df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
     
+
+    elif retriever_args.retriever_type == 'DenseRetrieval':
+        args, tokenizer, p_enc, q_enc = get_dense_args(retriever_args)
+
+        retriever = DenseRetrieval(args=args,dataset=examples,
+                        tokenizer=tokenizer,p_encoder=p_enc,q_encoder=q_enc)
+        df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
+    
+
+    elif retriever_args.retriever_type == 'get_retrieved_df':
+        df = pd.read_csv('concat_df.csv') # 여기도 
+
+    else:
+        print('Check retriever_type...!')
+        raise KeyboardInterrupt
+
+
     if training_args.do_predict:
         f = Features(
             {
@@ -97,10 +112,10 @@ def main():
     )
     dataset_args, model_args, retriever_args, training_args = parser.parse_args_into_dataclasses()
 
-    log_level = training_args.get_process_log_level()
-    logger.setLevel(log_level)
-    datasets.utils.logging.set_verbosity(log_level)
-    transformers.utils.logging.set_verbosity(log_level)
+    # log_level = training_args.get_process_log_level()
+    # logger.setLevel(log_level)
+    # datasets.utils.logging.set_verbosity(log_level)
+    # transformers.utils.logging.set_verbosity(log_level)
     transformers.utils.logging.enable_default_handler()
     transformers.utils.logging.enable_explicit_format()
 
@@ -127,12 +142,10 @@ def main():
 
     test_examples = processor.get_test_examples()
 
-    if retriever_args.use_eval_retrieval:
-        test_examples = run_sparse_retrieval(
-            tokenizer.tokenize,
+    test_examples = run_retrieval(
+            # tokenizer.tokenize,
             test_examples,
             training_args,
-            dataset_args,
             retriever_args
         )
     

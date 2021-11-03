@@ -61,8 +61,8 @@ def set_logging(default_args, dataset_args, model_args, retriever_args, training
     logging.basicConfig(
         format="%(asctime)s - %(module)s - %(levelname)s  %(message)s",
         datefmt="%m/%d/%Y %H:%M:%S",
-        handlers=[logging.StreamHandler(sys.stdout)],
-        level=training_args.get_process_log_level()
+        handlers=[logging.StreamHandler(sys.stdout)]#,
+        # level=training_args.get_process_log_level()
     )
     logger.debug("Default arguments %s", default_args)
     logger.debug("Dataset arguments %s", dataset_args)
@@ -123,7 +123,8 @@ def get_model(model_args, training_args):
     optimizer = AdamW(
         params=get_grouped_parameters(model, training_args),
         lr=training_args.learning_rate,
-        eps=training_args.adam_epsilon
+        eps=training_args.adam_epsilon,
+        betas = (training_args.adam_beta1, training_args.adam_beta2)
     )
 
     return config, model, tokenizer, optimizer
@@ -364,7 +365,7 @@ def main():
     wandb.login()
     wandb.init(
         project=default_args.wandb_project,
-        entity=default_args.wandb_entity,
+        # entity=default_args.wandb_entity,
         name=training_args.run_name
     )
     wandb.config.update(default_args)
@@ -372,6 +373,7 @@ def main():
     wandb.config.update(model_args)
     wandb.config.update(retriever_args)
     wandb.config.update(training_args)
+
 
     train_mrc(
         default_args, dataset_args, model_args, retriever_args, training_args,
