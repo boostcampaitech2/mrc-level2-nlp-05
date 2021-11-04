@@ -17,6 +17,7 @@ import datasets
 from datasets import load_metric, load_from_disk, Sequence, Value, Features, Dataset, DatasetDict
 
 from retrieval import SparseRetrieval
+from retrieval_TFIDF import SparseRetrieval_TFIDF
 
 from arguments import ModelArguments, DatasetArguments, RetrieverArguments
 from processor import QAProcessor
@@ -55,6 +56,12 @@ def run_sparse_retrieval(
         retriever = SparseRetrieval(tokenize_fn, data_path, context_path)
         retriever.get_sparse_embedding_bm25()
         df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
+
+    elif retriever_args.retriever_type  == 'TFIDF':
+        retriever = SparseRetrieval_TFIDF(tokenize_fn = tokenize_fn, data_path=data_path, context_path=context_path)
+        retriever.get_sparse_embedding()
+        df = retriever.retrieve(datasets["validation"], topk=retriever_args.top_k_retrieval)
+
     
     if training_args.do_predict:
         f = Features(
@@ -81,7 +88,7 @@ def run_sparse_retrieval(
                 "question": Value(dtype="string", id=None),
             }
         )
-    if retriever_args.retriever_type == "SparseRetrieval":
+    if retriever_args.retriever_type == "SparseRetrieval" or retriever_args.retriever_type == "TFIDF":
         dataset = Dataset.from_pandas(df, features=f)
 
     elif retriever_args.retriever_type == "ElasticSearch":
