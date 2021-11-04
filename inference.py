@@ -16,8 +16,8 @@ from transformers import EvalPrediction, HfArgumentParser, TrainingArguments, se
 import datasets
 from datasets import load_metric, load_from_disk, Sequence, Value, Features, Dataset, DatasetDict
 
-from retrieval_TFIDF import TFIDF_SparseRetrieval
-from retrieval_BM25 import SparseRetrieval
+from retrieval import SparseRetrieval
+from retrieval_TFIDF import SparseRetrieval_TFIDF
 
 from arguments import ModelArguments, DatasetArguments, RetrieverArguments
 from processor import QAProcessor
@@ -57,11 +57,12 @@ def run_sparse_retrieval(
         retriever.get_sparse_embedding_bm25()
         df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
 
-    elif retriever_args.retriever_type == "TFIDF":
-        retriever = TFIDF_SparseRetrieval(tokenize_fn, data_path, context_path)
+    elif retriever_args.retriever_type  == 'TFIDF':
+        retriever = SparseRetrieval_TFIDF(tokenize_fn = tokenize_fn, data_path=data_path, context_path=context_path)
         retriever.get_sparse_embedding()
-        df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
+        df = retriever.retrieve(datasets["validation"], topk=retriever_args.top_k_retrieval)
 
+    
     if training_args.do_predict:
         f = Features(
             {
