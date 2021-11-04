@@ -2,20 +2,36 @@
 
 #rm -rf ./models/*
 
-python train_mrc_dasol_2.py \
-    --run_name exp008_dasol_add_only_kor_vocab_no_slash_klue_rob_lg_freeze_2_base \
-    --description "extra korean vocab, no slash 2nd test klue rob lg - freeze first 2" \
-    --output_dir ./models \
-    --model klue/roberta-large \
-    --num_train_epochs 5 \
-    --use_max_padding \
-    --do_eval \
-    --warmup_steps 500 \
-    --eval_steps 100 \
+python train_mrc_v2.py \
+    --do_train --do_eval \
+    --output_dir ./saved --logging_dir ./logs --seed 42 \
+    --model gogamza/kobart-base-v1 \
+    --num_train_epochs 10 --learning_rate 3.4e-5 --weight_decay 0.015 \
+    --max_seq_len 512 \
+    --evaluation_strategy steps --eval_steps 100 --logging_steps 100 --save_steps 100 \
     --save_total_limit 5 \
-    --wandb_project mrc-vocab-exp \
-    --freeze_pretrained_weight first \
-    --freeze_pretrained_weight_epoch 2
+    --label_smoothing_factor 0.02 \
+    --run_name exp011_test_kobart_concat_y \
+    --wandb_project mrc-ensemble --wandb_entity this-is-real \
+    --description exp011_test_kobart_concat_y \
+    --load_best_model_at_end True --metric_for_best_model eval_exact_match --greater_is_better True \
+	--test_eval_dataset_path test_validation_dataset --concat_eval True \
+
+# python train_mrc_v2.py \
+#     --do_train --do_eval \
+#     --output_dir ./saved --logging_dir ./logs --seed 42 \
+#     --model klue/bert-base \
+#     --num_train_epochs 10 --learning_rate 3.4e-5 --weight_decay 0.015 \
+#     --max_seq_len 512 \
+#     --evaluation_strategy steps --eval_steps 100 --logging_steps 100 --save_steps 100 \
+#     --save_total_limit 5 \
+#     --label_smoothing_factor 0.02 \
+#     --run_name exp011_klue_bert_base_epoch_10_concat_y \
+#     --wandb_project mrc-ensemble --wandb_entity this-is-real \
+#     --description exp011_klue_bert_base_epoch_10_concat_y \
+#     --load_best_model_at_end True --metric_for_best_model eval_exact_match --greater_is_better True \
+# 	--freeze_type bert --freeze_epoch 2.0 \
+# 	--test_eval_dataset_path test_validation_dataset --concat_eval True \
 
 
 # CustomHeadAttentionWithLN & thisisreal pretrained model
@@ -70,9 +86,6 @@ python train_mrc_dasol_2.py \
 #     --wandb_project mrc-aug-exp \
 #     --freeze_pretrained_weight first \
 #     --freeze_pretrained_weight_epoch 2
-
-
-
 
 
 # Add vocabulary test
