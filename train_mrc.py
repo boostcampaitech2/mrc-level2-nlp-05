@@ -30,9 +30,8 @@ from transformers import (
     get_cosine_with_hard_restarts_schedule_with_warmup
 )
 
-from datasets import load_from_disk, load_metric
+from datasets import load_from_disk, load_metric, concatenate_datasets
 from processor import QAProcessor
-from retrieval import SparseRetrieval
 from utils import increment_path, LossObject, SaveLimitObject
 
 logger = logging.getLogger(__name__)
@@ -133,6 +132,9 @@ def get_dataloader(qa_processor, dataset_args, training_args, tokenizer):
     data_collator = DataCollatorWithPadding(tokenizer)
 
     train_features = qa_processor.get_train_features()
+    if dataset_args.concat_aug == 'mask_context':
+        mask_features = load_from_disk(os.path.join(qa_processor.data_dir, 'context_mask_dataset'))
+        train_features = concatenate_datasets([train_features, mask_features])
     train_features = train_features.remove_columns(['example_id', 'offset_mapping', 'overflow_to_sample_mapping'])
 
     eval_features = qa_processor.get_eval_features()

@@ -79,8 +79,13 @@ class QAProcessor(DataProcessor):
         self.eval_dataset  = self.train_datasets["validation"]
         self.test_dataset  = self.test_datasets["validation"]
 
-        if dataset_args.concat_aug is not None:
-            self.train_datasets = concatenate_datasets([self.train_dataset, self.load_aug_dataset(dataset_args.concat_aug)])
+        if dataset_args.concat_aug is not None and dataset_args.concat_aug != 'mask_context':
+            self.train_dataset = self.train_dataset.map(remove_columns=['__index_level_0__'])
+
+            aug_dataset = self.load_aug_dataset(dataset_args.concat_aug)
+            aug_dataset = aug_dataset.map(remove_columns=['__index_level_0__'])
+
+            self.train_dataset = concatenate_datasets([self.train_dataset, aug_dataset])
 
         self.tokenizer = tokenizer
 
@@ -89,9 +94,6 @@ class QAProcessor(DataProcessor):
         if concat:
             # concatenate train and eval set to train set
             self.train_dataset = concatenate_datasets([self.train_dataset, self.eval_dataset])
-
-        # self.train_dataset = self.train_dataset.map(self._flatten_multiple_answers, batched=True, batch_size=1, remove_columns=["answers"])
-        # self.eval_dataset  = self.eval_dataset.map(self._flatten_multiple_answers, batched=True, batch_size=1, remove_columns=["answers"])
 
         self.set_column_names()
 
@@ -854,10 +856,7 @@ class QAProcessor(DataProcessor):
     def load_aug_dataset(self, concat_aug):
         if concat_aug.count("add_ner"):
             return load_from_disk(os.path.join(self.data_dir, "ner_only_train_dataset"))
-        elif concat_aug.count("mask_context"):
-            return load_from_disk(os.path.join(self.data_dir, "context_mask_dataset"))
         elif concat_aug.count("mask_word"):
             return load_from_disk(os.path.join(self.data_dir, "mask_word_q_train_dataset"))
         elif concat_aug.count("mask_entity"):
-            return load_from_disk(os.path.join(self.data_dir, "mask_morph_q_train_dataset"))
-            
+            return load_from_disk(os.path.join(self.data_dir, "mask_morph_q_train_dataset"))         

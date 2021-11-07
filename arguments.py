@@ -66,8 +66,14 @@ class DatasetArguments(BaseArguments):
     concat_eval: bool = False
     """Whether concat to train set and eval set"""
 
-    concat_aug = field(default='None', choices=['add_ner', 'mask_context', 'mask_word', 'mask_entity'])
-    """whether to concatenate augmented dataset to original train dataset"""
+    concat_aug: str = None
+    """
+    whether to concatenate augmented dataset to original train dataset:
+        add_ner
+        mask_context
+        mask_word
+        mask_entity
+    """
 
     token_masking_ratio: float = 0.0
     """<MASK> tokens per total tokens ratio """
