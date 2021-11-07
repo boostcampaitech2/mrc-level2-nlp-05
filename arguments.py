@@ -132,25 +132,45 @@ class ModelArguments(BaseArguments):
 class RetrieverArguments(BaseArguments):
     """Retriever Arguments"""
 
-    retriever: str = "tf-idf"
-    """name of retriever"""
+    retriever_type: str = "SparseRetrieval_BM25P"
+    """
+    SparseRetrieval_BM25P
+    SparseRetrieval_TFIDF
+    DenseRetrieval
+    get_retrieved_df : passages pre-retrieved by elastic search
+    
+    """
+
+    retriever_dir: str = './models/retriever' 
+    """directory of retriever"""
 
     top_k_retrieval: int = 1
     """numb top-k passages to retrieve"""
 
-    use_eval_retrieval: bool = True
-    """whether to run retrieval on eval"""
+    dpr_model: str = "klue/bert-base"
+    """path to pretrained model or model identifier from huggingface.co/models"""    
 
-    use_faiss: bool = False
-    """whether to build with faiss"""
+    dpr_learning_rate: float = 3e-5
+    """learning rate for DPR fine-tuning"""
 
-    num_clusters: int = 64
-    """num clusters to use for faiss"""
-    
-    retriever_type: str = 'SparseRetrieval'
-    """
-        SparseRetrieval or ElasticSearch
-    """
+    dpr_train_batch: int = 8
+    """train batch size for DPR fine-tuning"""
+
+    dpr_eval_batch: int = 8
+    """eval batch size for DPR fine-tuning"""
+
+    dpr_epochs: int = 10
+    """numb of epochs for DPR fine-tuning"""
+
+    dpr_weight_decay: float = 0.01
+    """weight decay for DPR fine-tuning"""
+
+    dpr_eval_steps: int = 200
+    """numb of epochs for DPR fine-tuning"""
+
+    dpr_warmup_steps: int = 500
+    """numb of warmup steps for DPR fine-tuning"""
+
 
 @dataclass
 class DefaultArguments(BaseArguments):
