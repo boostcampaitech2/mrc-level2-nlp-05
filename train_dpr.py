@@ -47,7 +47,8 @@ def get_dense_args(retriever_args:RetrieverArguments):# : RetrieverArguments):
             weight_decay=retriever_args.dpr_weight_decay,
             overwrite_output_dir = True,
             eval_steps = retriever_args.dpr_eval_steps,
-            warmup_steps = retriever_args.dpr_warmup_steps
+            warmup_steps = retriever_args.dpr_warmup_steps,
+            run_name = retriever_args.run_name
             )
 
     retriever_dir = retriever_args.retriever_dir

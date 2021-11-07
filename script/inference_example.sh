@@ -5,4 +5,5 @@ python inference.py \
     --dataset_path ../data/test_dataset/ \
     --model ./models/exp011_klue_roberta_large_lstm_lm_concat_y \
     --top_k_retrieval 1 \
+    -- retriever_type 'SparseRetrieval_BM25P'
     --do_predict
