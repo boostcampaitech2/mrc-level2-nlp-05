@@ -49,7 +49,7 @@ python train_mrc.py \
 --wandb_project mrc-ensemble \
 --freeze_pretrained_weight first \
 --freeze_pretrained_weight_epoch 2 \
---head CustomRobertaForQuestionAnsweringWithLSTMLNHead \             
+--head CustomRobertaForQuestionAnsweringWithLSTMLNHead\               
 --head_dropout_ratio 0.7 \
 --test_eval_dataset_path test_validation_dataset --concat_eval True \
 ```
@@ -275,4 +275,16 @@ trainer = QATrainer(
 
 </details>
 
+## How to Inference
+
+`script/inference_example.sh` 를 실행하여 inference를 수행할 수 있습니다.
+
+```bash
+python inference.py \
+--output_dir ./outputs/klue_bert_base \                        
+--dataset_path ../data/test_dataset/ \                          
+--model ./models/exp011_klue_roberta_large_lstm_lm_concat_y \   
+--top_k_retrieval 1 \                                           
+--do_predict
+```
 
