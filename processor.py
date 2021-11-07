@@ -79,7 +79,7 @@ class QAProcessor(DataProcessor):
         self.eval_dataset  = self.train_datasets["validation"]
         self.test_dataset  = self.test_datasets["validation"]
 
-        if dataset_args.concat_aug is not None and dataset_args.concat_aug != 'mask_context':
+        if dataset_args.concat_aug in ["add_ner", "mask_word", "mask_entity"]:
             self.train_dataset = self.train_dataset.map(remove_columns=['__index_level_0__'])
 
             aug_dataset = self.load_aug_dataset(dataset_args.concat_aug)
