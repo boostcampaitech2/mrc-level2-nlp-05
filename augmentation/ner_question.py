@@ -17,6 +17,9 @@ ENG_TO_KOR = {'PERSON' : '사람', 'LOCATION' : '장소', 'ORGANIZATION' : '조�
 
 IGNORE_TAGS = ('O', 'ARTIFACT', 'DATE', 'TIME', 'CIVILIZATION', 'QUANTITY', 'TERM')  # 부자연스러운 태그
 
+LOAD_DIR = "/opt/ml/data/train_dataset"
+SAVE_DIR_NER = "/opt/ml/data/ner_only_train_dataset"
+
 
 def random_aug(
     word_tag_pairs: List[Tuple[str, str]],
@@ -78,7 +81,6 @@ train_dataset_aug = train_dataset.map(
                         # num_proc=2  # Pororo NER에서 에러 발생
                     )
 
-datasets["train"] = train_dataset_aug
-datasets.save_to_disk("/opt/ml/data/ner_only_train_dataset")
+train_dataset_aug.save_to_disk(SAVE_DIR_NER)
 
 logger.info(f'Created a new train dataset of size {len(train_dataset_aug)}')

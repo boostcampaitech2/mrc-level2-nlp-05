@@ -16,6 +16,8 @@ MASK_RATIO = 0.2
 MAX_MASK_NUM = 2
 MASK_TOKEN = tokenizer.mask_token  # '[MASK]'
 
+LOAD_DIR = "/opt/ml/data/train_dataset"
+SAVE_DIR_WORD = "/opt/ml/data/mask_word_q_train_dataset"
 
 def mask_word(examples):
     questions = examples["question"]
@@ -40,7 +42,7 @@ def mask_word(examples):
 
 
 # load & map augmentation
-datasets = load_from_disk("/opt/ml/data/train_dataset")
+datasets = load_from_disk(LOAD_DIR)
 train_dataset = datasets["train"]
 
 # train_dataset = train_dataset.select(range(30))  # sample
@@ -52,8 +54,6 @@ train_dataset_aug = train_dataset.map(
                     )
 
 # save datasets
-SAVE_DIR_WORD = "/opt/ml/data/mask_word_q_train_dataset"
-datasets["train"] = train_dataset_aug
-datasets.save_to_disk(SAVE_DIR_WORD)
+train_dataset_aug.save_to_disk(SAVE_DIR_WORD)
 
 logger.info(f'Created a new train dataset of size {len(train_dataset_aug)}')

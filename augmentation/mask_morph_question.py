@@ -13,6 +13,9 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 MASK_TOKEN = tokenizer.mask_token
 MASK_RATIO = 0.2
 MAX_MASK_NUM = 2
+LOAD_DIR = "/opt/ml/data/train_dataset"
+SAVE_DIR_WORD = "/opt/ml/data/mask_morph_q_train_dataset"
+
 
 ner = Pororo(task="ner", lang="ko")
 
@@ -51,8 +54,6 @@ train_dataset_aug = train_dataset.map(
                     )
 
 # save datasets
-SAVE_DIR_WORD = "/opt/ml/data/mask_morph_q_train_dataset"
-datasets["train"] = train_dataset_aug
-datasets.save_to_disk(SAVE_DIR_WORD)
+train_dataset_aug.save_to_disk(SAVE_DIR_WORD)
 
 logger.info(f'Created a new train dataset of size {len(train_dataset_aug)}')
