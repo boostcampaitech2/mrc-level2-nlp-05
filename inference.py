@@ -3,11 +3,10 @@ import os
 import sys
 from typing import Callable, List, Dict, NoReturn, Tuple
 from importlib import import_module
+import pandas as pd
 
 import numpy as np
-
 import torch
-import torch.nn as np
 
 import transformers
 from transformers import AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer
@@ -16,14 +15,14 @@ from transformers import EvalPrediction, HfArgumentParser, TrainingArguments, se
 import datasets
 from datasets import load_metric, load_from_disk, Sequence, Value, Features, Dataset, DatasetDict
 
-from retrieval import SparseRetrieval
-from retrieval_TFIDF import SparseRetrieval_TFIDF
+from retrieval import SparseRetrieval_BM25P, SparseRetrieval_TFIDF, DenseRetrieval
+from train_dpr import get_dense_args
 
 from arguments import ModelArguments, DatasetArguments, RetrieverArguments
 from processor import QAProcessor
 from trainer_qa import QATrainer
 
-import pandas as pd
+
 
 logger = transformers.logging.get_logger(__name__)
 
@@ -42,25 +41,47 @@ def get_model(model_args: ModelArguments, config=None):
         return model
 
 
-def run_sparse_retrieval(
-    tokenize_fn: Callable[[str], List[str]],
+def run_retrieval(
     examples: Dataset,
     training_args: TrainingArguments,
-    dataset_args: DatasetArguments,
     retriever_args: RetrieverArguments,
     data_path: str = "/opt/ml/data/",
     context_path: str = "wikipedia_documents.json",
 ) -> Dataset:
     
-    if retriever_args.retriever_type == "SparseRetrieval":
-        retriever = SparseRetrieval(tokenize_fn, data_path, context_path)
+    # Query에 맞는 Passage들을 Retrieval 합니다.
+    if retriever_args.retriever_type == 'SparseRetrieval_BM25P':
+        tokenizer = AutoTokenizer.from_pretrained('klue/bert-base')
+        retriever = SparseRetrieval_BM25P(
+        tokenize_fn=tokenizer.tokenize, data_path=data_path, context_path=context_path
+        ) 
         retriever.get_sparse_embedding_bm25()
         df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
 
-    elif retriever_args.retriever_type  == 'TFIDF':
-        retriever = SparseRetrieval_TFIDF(tokenize_fn = tokenize_fn, data_path=data_path, context_path=context_path)
-        retriever.get_sparse_embedding()
-        df = retriever.retrieve(datasets["validation"], topk=retriever_args.top_k_retrieval)
+
+    elif retriever_args.retriever_type == 'SparseRetrieval_TFIDF':
+        tokenizer = AutoTokenizer.from_pretrained('klue/bert-base')
+        retriever = SparseRetrieval_BM25P(
+        tokenize_fn=tokenizer.tokenize, data_path=data_path, context_path=context_path
+        ) 
+        retriever.get_sparse_embedding_bm25()
+        df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
+
+
+    elif retriever_args.retriever_type == 'DenseRetrieval':
+        args, tokenizer, p_enc, q_enc = get_dense_args(retriever_args)
+
+        retriever = DenseRetrieval(args=args,dataset=examples,
+                        tokenizer=tokenizer,p_encoder=p_enc,q_encoder=q_enc)
+        df = retriever.retrieve(examples, topk=retriever_args.top_k_retrieval)
+    
+
+    elif retriever_args.retriever_type == 'get_retrieved_df':
+        df = pd.read_csv('/opt/ml/data/es/context_IB.csv') # BM25, DFI, DFR 
+
+    else:
+        print('Check retriever_type...')
+        raise KeyboardInterrupt
 
     
     if training_args.do_predict:
@@ -88,13 +109,8 @@ def run_sparse_retrieval(
                 "question": Value(dtype="string", id=None),
             }
         )
-    if retriever_args.retriever_type == "SparseRetrieval" or retriever_args.retriever_type == "TFIDF":
-        dataset = Dataset.from_pandas(df, features=f)
 
-    elif retriever_args.retriever_type == "ElasticSearch":
-        df = pd.read_csv('ES_contest_main.csv')
-        dataset = Dataset.from_pandas(df, features=f)
-
+    dataset = Dataset.from_pandas(df, features=f)
     return dataset
 
 
@@ -135,8 +151,7 @@ def main():
     test_examples = processor.get_test_examples()
 
     if retriever_args.use_eval_retrieval:
-        test_examples = run_sparse_retrieval(
-            tokenizer.tokenize,
+        test_examples = run_retrieval(
             test_examples,
             training_args,
             dataset_args,
