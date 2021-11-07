@@ -8,3 +8,8 @@ datasets
 simple_parsing
 tqdm
 wandb
+scikit-learn
+konlpy
+typing
+sentencepiece
+rank-bm25
