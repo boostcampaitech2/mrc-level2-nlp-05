@@ -31,7 +31,7 @@ python train_mrc.py \
 --wandb_project mrc-ensemble \
 --freeze_pretrained_weight first \
 --freeze_pretrained_weight_epoch 2 \
---head CustomRobertaForQuestionAnsweringWithLSTMLNHead \                # custom head
+--head CustomRobertaForQuestionAnsweringWithLSTMLNHead \               
 --head_dropout_ratio 0.7 \
 --test_eval_dataset_path test_validation_dataset --concat_eval True \
 ```
@@ -50,18 +50,18 @@ python train_mrc.py \
 
 ```bash
 python train_mrc_v2.py \
---run_name roberta_large_freeze_backbone \                  # 실험 이름
---description exp_on_freeze_backbone                        # 실험 설명
+--run_name roberta_large_freeze_backbone \                  
+--description exp_on_freeze_backbone                        
 --do_train --do_eval \
 --output_dir ./saved --logging_dir ./logs --seed 42 \
---model klue/roberta-large \                                # backbone 모델 정보
+--model klue/roberta-large \                                
 --num_train_epochs 7 \
 --learning_rate 3.4e-5 --weight_decay 0.015 \
 --max_seq_len 512 --max_ans_len 30 \
 --evaluation_strategy steps \
 --eval_steps 100 --logging_steps 100 --save_steps 200 \
 --save_total_limit 5 \
---freeze_type roberta --freeze_epoch 1.0 \                  # pre-trained 모델 freeze
+--freeze_type roberta --freeze_epoch 1.0 \                  
 --label_smoothing_factor 0.02 \
 --wandb_project exp_trainer --wandb_entity this-is-real \
 ```
@@ -232,10 +232,10 @@ trainer = QATrainer(
 
 ```bash
 python inference.py \
---output_dir ./outputs/klue_bert_base \                         # inference 결과물이 저장될 경로
---dataset_path ../data/test_dataset/ \                          # test 데이터셋 경로
---model ./models/exp011_klue_roberta_large_lstm_lm_concat_y \   # 학습된 MRC 모델 저장 경로
---top_k_retrieval 1 \                                           # retrieval를 통해 가져올 context 갯수
+--output_dir ./outputs/klue_bert_base \                        
+--dataset_path ../data/test_dataset/ \                          
+--model ./models/exp011_klue_roberta_large_lstm_lm_concat_y \   
+--top_k_retrieval 1 \                                           
 --do_predict
 ```
 
