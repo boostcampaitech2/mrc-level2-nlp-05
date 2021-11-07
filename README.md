@@ -1,8 +1,68 @@
 # ODQA MRC - ㅇㄱㄹㅇ
 
-## Boostcamp AI-Tech 2기
+## Structure
 
-# Baseline v2.0 for ODQA
+내용 입력 필요
+
+## How to Train
+
+### Retrieval
+
+```bash
+
+```
+
+내용 입력 필요
+
+### low-level MRC Train
+
+`script/train_mrc_example.sh` 를 실행하여 MRC 모델을 학습 시킬 수 있습니다.
+
+```bash
+python train_mrc.py \
+--run_name exp011_klue_roberta_large_lstm_lm_concat_y \
+--description "klue_roberta_large, lstm with layernorm custom head, concat_y" \
+--output_dir ./saved \
+--model klue/roberta-large \
+--num_train_epochs 5 \
+--use_max_padding \
+--do_eval \
+--warmup_steps 100 \
+--eval_steps 100 \
+--save_total_limit 7 \
+--wandb_project mrc-ensemble \
+--freeze_pretrained_weight first \
+--freeze_pretrained_weight_epoch 2 \
+--head CustomRobertaForQuestionAnsweringWithLSTMLNHead \                # custom head
+--head_dropout_ratio 0.7 \
+--test_eval_dataset_path test_validation_dataset --concat_eval True \
+```
+
+내용 입력 필요
+
+### Baseline v2.0 for ODQA
+
+`script/train_mrc_v2_example.sh` 를 실행하여 MRC 모델을 학습 시킬 수 있습니다.
+
+```bash
+python train_mrc_v2.py \
+--run_name roberta_large_freeze_backbone \                  # 실험 이름
+--description exp_on_freeze_backbone                        # 실험 설명
+--do_train --do_eval \
+--output_dir ./saved --logging_dir ./logs --seed 42 \
+--model klue/roberta-large \                                # backbone 모델 정보
+--num_train_epochs 7 \
+--learning_rate 3.4e-5 --weight_decay 0.015 \
+--max_seq_len 512 --max_ans_len 30 \
+--evaluation_strategy steps \
+--eval_steps 100 --logging_steps 100 --save_steps 200 \
+--save_total_limit 5 \
+--freeze_type roberta --freeze_epoch 1.0 \                  # pre-trained 모델 freeze
+--label_smoothing_factor 0.02 \
+--wandb_project exp_trainer --wandb_entity this-is-real \
+```
+
+<details>
 
 ## Updates
 (02:57 AM, Nov 1, 2021)
@@ -152,7 +212,7 @@ trainer = QATrainer(
 
 * 기존에 loss가 계산되지 않은 이유는 QA의 label에 해당하는 `start_positions`과 `end_positions`를 반환하지 않았기 때문입니다. 이를 반환하도록 개선하였습니다.
 
-# 앞으로의 TODO
+## 앞으로의 TODO
 
 * `inference.py` 수정
 
@@ -160,4 +220,20 @@ trainer = QATrainer(
 
 * `MultipleAnswers` 구현: gold_answer에 해당하는 모든 span을 찾아 `answers`에 추가하는 것입니다. 일단 답만 맞으면 되기 때문에, 얼마나 성능을 늘릴 지는 고민해볼 법합니다.
 
+</details>
+
+## How to Inference
+
+`script/inference_example.sh` 를 실행하여 inference를 수행할 수 있습니다.
+
+```bash
+python inference.py \
+--output_dir ./outputs/klue_bert_base \                         # inference 결과물이 저장될 경로
+--dataset_path ../data/test_dataset/ \                          # test 데이터셋 경로
+--model ./models/exp011_klue_roberta_large_lstm_lm_concat_y \   # 학습된 MRC 모델 저장 경로
+--top_k_retrieval 1 \                                           # retrieval를 통해 가져올 context 갯수
+--do_predict
+```
+
+내용 입력 필요
 
