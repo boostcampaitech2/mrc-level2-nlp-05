@@ -4,13 +4,31 @@
 
 ODQA는 다양한 종류의 질문에 대해 대답하는 인공지능 연구 분야인 QA(Question Answering)에 더해 주어지는 지문이 따로 존재하지 않고 사전에 구축되어 있는 Knowledge resource에서 질문에 대답할 수 있는 문서를 찾는 과정이 추가된 시스템입니다.
 
+<br>
+
 ## How to Train
 
-### Retrieval
-
+### Retriever (for Dense Retriever)
+`script/train_dpr_example`를 통해 `train_dpr.py`를 실행하여 Dense Passage Retriever 를 학습시킬 수 있습니다.
 ```bash
-
+python train_dpr.py \
+--run_name "exp1_dpr_klue-bert" \                           
+--description "klue/bert-base_dpr" \                      
+--dpr_model 'klue/bert-base' \                              
+--dpr_learning_rate 3e-5 \
+--dpr_epochs 10 \
+--dpr_warmup_steps 500 \
+--wandb_project 'dpr'
 ```
+<details>
+
+- `train_dpr.py`는 DPR을 학습하기 위해서 customized trainer 구현하여 사용했습니다.
+- 추가적으로 weight decay, train/eval batch size, eval_steps를 arguments 로 수정할 수 있습니다.
+- 학습 시에 `./models/retriever` 에 `p_encoder` 및 `q_encoder` 폴더를 생성 후에 모델을 저장합니다.
+
+</details>
+
+<br>
 
 ### Train MRC with low-level
 
@@ -31,7 +49,7 @@ python train_mrc.py \
 --wandb_project mrc-ensemble \
 --freeze_pretrained_weight first \
 --freeze_pretrained_weight_epoch 2 \
---head CustomRobertaForQuestionAnsweringWithLSTMLNHead \                # custom head
+--head CustomRobertaForQuestionAnsweringWithLSTMLNHead\               
 --head_dropout_ratio 0.7 \
 --test_eval_dataset_path test_validation_dataset --concat_eval True \
 ```
@@ -44,30 +62,61 @@ python train_mrc.py \
 
 </details>
 
+<br>
+
 ### Train MRC v2.0
 
 `script/train_mrc_v2_example.sh` 를 통해 `train_mrc_v2.py`를 실행하여 MRC 모델을 학습 시킬 수 있습니다.
 
 ```bash
 python train_mrc_v2.py \
---run_name roberta_large_freeze_backbone \                  # 실험 이름
---description exp_on_freeze_backbone                        # 실험 설명
+--run_name roberta_large_freeze_backbone \                 
+--description exp_on_freeze_backbone                     
 --do_train --do_eval \
 --output_dir ./saved --logging_dir ./logs --seed 42 \
---model klue/roberta-large \                                # backbone 모델 정보
+--model klue/roberta-large \                               
 --num_train_epochs 7 \
 --learning_rate 3.4e-5 --weight_decay 0.015 \
 --max_seq_len 512 --max_ans_len 30 \
 --evaluation_strategy steps \
 --eval_steps 100 --logging_steps 100 --save_steps 200 \
 --save_total_limit 5 \
---freeze_type roberta --freeze_epoch 1.0 \                  # pre-trained 모델 freeze
+--freeze_type roberta --freeze_epoch 1.0 \                  
 --label_smoothing_factor 0.02 \
 --wandb_project exp_trainer --wandb_entity this-is-real \
 ```
 
+<br>
+
+## How to Inference
+
+`script/inference_example.sh` 를 실행하여 inference를 수행할 수 있습니다.
+
+```bash
+python inference.py \
+--output_dir ./outputs/klue_bert_base \                     
+--dataset_path ../data/test_dataset/ \                     
+--model ./models/exp011_klue_roberta_large_lstm_lm_concat_y \  
+--top_k_retrieval 1 \                                     
+-- retriever_type 'SparseRetrieval_BM25P'                 
+--do_predict
+```
+
+
 <details>
 
+- Fine-tuned 된 MRC 모델을 불러와서 `retriever_type` 을 설정하여 prediction 을 뽑아주는 역할을 수행할 수 있습니다.
+- `retriever_type`으로는 `SparseRetrieval_BM25P`, `SparseRetrieval_TFIDF`, `DenseRetrieval`, `get_retrieved_df` 가 있습니다.
+- `DenseRetrieval` 는 사전학습된 DPR 이 존재해야하기에 `train_dpr.py` 을 실행해준 뒤에 사용이 가능해집니다.
+- `get_retrieved_df` 는 retrieval 을 동시에 수행하지 않고 미리 retrieved 된 passage 가 담긴 `.csv` 파일이 존재할 시에 예외적으로 기능하게 추가해주었고, 협업의 편의상 `Elastic Search` 기반의 retrieval 방식은 서버에서 사전에 retrieve 한 뒤에 `.csv` 파일을 활용하였습니다.
+
+</details>
+
+
+<br>
+
+## Further Explanation
+<details>
 ## Updates
 (02:57 AM, Nov 1, 2021)
 
@@ -226,16 +275,4 @@ trainer = QATrainer(
 
 </details>
 
-## How to Inference
-
-`script/inference_example.sh` 를 실행하여 inference를 수행할 수 있습니다.
-
-```bash
-python inference.py \
---output_dir ./outputs/klue_bert_base \                         # inference 결과물이 저장될 경로
---dataset_path ../data/test_dataset/ \                          # test 데이터셋 경로
---model ./models/exp011_klue_roberta_large_lstm_lm_concat_y \   # 학습된 MRC 모델 저장 경로
---top_k_retrieval 1 \                                           # retrieval를 통해 가져올 context 갯수
---do_predict
-```
 

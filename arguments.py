@@ -150,6 +150,9 @@ class RetrieverArguments(BaseArguments):
     
     """
 
+    run_name: str = 'exp' 
+    """train run name for wandb"""
+
     retriever_dir: str = './models/retriever' 
     """directory of retriever"""
 
