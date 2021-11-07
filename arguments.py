@@ -69,10 +69,10 @@ class DatasetArguments(BaseArguments):
     concat_aug: str = None
     """
     whether to concatenate augmented dataset to original train dataset:
-        add_ner
-        mask_context
-        mask_word
-        mask_entity
+        add_ner - insert NER tags in front of entities in questions
+        mask_context - mask context tokens similar to the question
+        mask_word - mask random words in questions
+        mask_entity - maks random entities in questions
     """
 
     token_masking_ratio: float = 0.0
