@@ -26,7 +26,6 @@ def es_retrieval():
     print("end until ES has started")   
 
     es = Elasticsearch('localhost:9200')
-    index_name  = "wiki-index"
 
     mapping = {
                       'settings':{
@@ -51,7 +50,7 @@ def es_retrieval():
                           },
                           'similarity':{
                               'my_similarity':{
-                                  'type':'BM25',
+                                  'type':'IB',
                               }
                           }
                       },
@@ -71,7 +70,6 @@ def es_retrieval():
                       }
                   }
 
-    print(es.indices.create(index=index_name, body=mapping, ignore=400))
 
     print("------------document_store------------")  
     # Connect to Elasticsearch
@@ -142,6 +140,6 @@ def es_retrieval():
 
     print("finish_retrieve")
     cqas = pd.DataFrame(total)
-    cqas.to_csv('question1_contest.csv')
+    cqas.to_csv('context_IB.csv')
 
     return cqas
