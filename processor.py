@@ -79,6 +79,9 @@ class QAProcessor(DataProcessor):
         self.eval_dataset  = self.train_datasets["validation"]
         self.test_dataset  = self.test_datasets["validation"]
 
+        if dataset_args.concat_aug is not None:
+            self.train_datasets = concatenate_datasets([self.train_dataset, self.load_aug_dataset(dataset_args.concat_aug)])
+
         self.tokenizer = tokenizer
 
         self.is_train = True
@@ -847,3 +850,14 @@ class QAProcessor(DataProcessor):
         
         examples['input_ids'] = new_input_ids
         return examples
+
+    def load_aug_dataset(self, concat_aug):
+        if concat_aug.count("add_ner"):
+            return load_from_disk(os.path.join(self.data_dir, "ner_only_train_dataset"))
+        elif concat_aug.count("mask_context"):
+            return load_from_disk(os.path.join(self.data_dir, "context_mask_dataset"))
+        elif concat_aug.count("mask_word"):
+            return load_from_disk(os.path.join(self.data_dir, "mask_word_q_train_dataset"))
+        elif concat_aug.count("mask_entity"):
+            return load_from_disk(os.path.join(self.data_dir, "mask_morph_q_train_dataset"))
+            
