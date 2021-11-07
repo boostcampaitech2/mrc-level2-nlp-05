@@ -71,7 +71,7 @@ def set_logging(default_args, dataset_args, model_args, retriever_args, training
     logger.debug("Training argumenets %s", training_args)
 
 def set_seed_everything(seed):
-    '''seed 고정 함수'''
+    """seed 고정 함수"""
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -152,6 +152,7 @@ def get_dataloader(qa_processor, dataset_args, training_args, tokenizer):
     return train_dataloader, eval_dataloader
 
 def get_scheduler(optimizer, train_dataloader, training_args, model_args):
+    """scheduler 객체 생성 함수"""
     num_training_steps = len(train_dataloader) // training_args.gradient_accumulation_steps * training_args.num_train_epochs
     scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
         optimizer,
@@ -163,7 +164,7 @@ def get_scheduler(optimizer, train_dataloader, training_args, model_args):
 
     
 def need_weight_freeze(model_args, epoch, max_epoch):
-
+    """pre-trained 모델 가중치 학습 제한(freeze) 여부 반환 함수"""
     freeze = False
 
     if model_args.freeze_pretrained_weight == 'all':
