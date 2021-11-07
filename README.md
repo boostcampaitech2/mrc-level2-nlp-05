@@ -1,8 +1,8 @@
 # ODQA MRC - ㅇㄱㄹㅇ
 
-## Structure
+## ODQA: Open-Domain Question Answering
 
-내용 입력 필요
+ODQA는 다양한 종류의 질문에 대해 대답하는 인공지능 연구 분야인 QA(Question Answering)에 더해 주어지는 지문이 따로 존재하지 않고 사전에 구축되어 있는 Knowledge resource에서 질문에 대답할 수 있는 문서를 찾는 과정이 추가된 시스템입니다.
 
 ## How to Train
 
@@ -12,11 +12,9 @@
 
 ```
 
-내용 입력 필요
+### Train MRC with low-level
 
-### low-level MRC Train
-
-`script/train_mrc_example.sh` 를 실행하여 MRC 모델을 학습 시킬 수 있습니다.
+`script/train_mrc_example.sh` 를 통해 `train_mrc.py`를 실행하여 MRC 모델을 학습 시킬 수 있습니다.
 
 ```bash
 python train_mrc.py \
@@ -38,11 +36,17 @@ python train_mrc.py \
 --test_eval_dataset_path test_validation_dataset --concat_eval True \
 ```
 
-내용 입력 필요
+<details>
 
-### Baseline v2.0 for ODQA
+- `train_mrc.py` MRC 모델을 학습시킬 수 있는 huggingface의 `trainer`를 사용하지 않는 low-level 코드를 구현했습니다.
+- 추가적으로 weight decay, learning rate scheduler, pre-trained weight freeze와 같은 기능들을 argument들을 통해 적용할 수 있습니다.
+- 학습 시 eval loss가 이전 eval step보다 감소하거나 eval loss가 감소하지 않았지만 Exact Match 점수가 상승한 경우 저장될 수 있도록 로직을 구현했습니다.
 
-`script/train_mrc_v2_example.sh` 를 실행하여 MRC 모델을 학습 시킬 수 있습니다.
+</details>
+
+### Train MRC v2.0
+
+`script/train_mrc_v2_example.sh` 를 통해 `train_mrc_v2.py`를 실행하여 MRC 모델을 학습 시킬 수 있습니다.
 
 ```bash
 python train_mrc_v2.py \
@@ -234,6 +238,4 @@ python inference.py \
 --top_k_retrieval 1 \                                           # retrieval를 통해 가져올 context 갯수
 --do_predict
 ```
-
-내용 입력 필요
 
